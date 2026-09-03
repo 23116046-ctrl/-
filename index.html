@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ルミナスの勇者 - 2D Open World Action RPG</title>
+    <title>ルミナスの勇者 - Open World Action RPG HD</title>
     <style>
         * {
             box-sizing: border-box;
@@ -11,9 +11,9 @@
             -webkit-user-select: none;
         }
         body {
-            background-color: #0f0f1d;
+            background-color: #0b0c10;
             color: #fff;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Segoe UI', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
             margin: 0;
             padding: 10px;
             display: flex;
@@ -24,99 +24,99 @@
         }
         #game-wrapper {
             position: relative;
-            background-color: #1a1a2e;
-            border: 3px solid #e94560;
+            background-color: #1f2833;
+            border: 3px solid #66fcf1;
             border-radius: 12px;
-            box-shadow: 0 0 20px rgba(233, 69, 96, 0.4);
+            box-shadow: 0 0 25px rgba(102, 252, 241, 0.3);
             padding: 15px;
             display: flex;
             flex-direction: column;
             align-items: center;
-            max-width: 840px;
+            max-width: 860px;
             width: 100%;
         }
         h1 {
             margin: 0 0 10px 0;
-            font-size: 22px;
+            font-size: 24px;
             color: #f1c40f;
-            text-shadow: 2px 2px 4px #000;
+            text-shadow: 2px 2px 6px #000;
             letter-spacing: 2px;
         }
         #canvas-container {
             position: relative;
             width: 800px;
             height: 480px;
-            border: 2px solid #16213e;
+            border: 3px solid #45a29e;
             border-radius: 8px;
             overflow: hidden;
             background-color: #000;
         }
         canvas {
             display: block;
-            background-color: #333;
         }
         #ui-bar {
             width: 100%;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: #16213e;
-            padding: 8px 15px;
+            background: #0b0c10;
+            border: 1px solid #45a29e;
+            padding: 10px 15px;
             margin-top: 10px;
             border-radius: 6px;
-            font-size: 14px;
+            font-size: 13px;
             font-weight: bold;
         }
         .stat-group {
             display: flex;
             gap: 15px;
+            align-items: center;
         }
         .stat-item {
             display: flex;
             align-items: center;
-            gap: 5px;
+            gap: 4px;
         }
         .val {
-            color: #f1c40f;
+            color: #66fcf1;
         }
         #msg-log {
             position: absolute;
-            bottom: 10px;
-            left: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.75);
-            border: 1px solid #e94560;
+            bottom: 12px;
+            left: 12px;
+            right: 12px;
+            background: rgba(11, 12, 16, 0.88);
+            border: 2px solid #66fcf1;
             color: #fff;
-            padding: 8px 12px;
-            border-radius: 5px;
+            padding: 10px 15px;
+            border-radius: 8px;
             font-size: 13px;
             pointer-events: none;
-            max-height: 70px;
-            overflow-y: auto;
-            line-height: 1.4;
+            line-height: 1.5;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
         #controls-hint {
-            margin-top: 10px;
+            margin-top: 8px;
             font-size: 12px;
-            color: #a0a0a0;
+            color: #c5c6c7;
             text-align: center;
         }
         .key {
-            background: #333;
+            background: #1f2833;
             padding: 2px 6px;
             border-radius: 4px;
-            border: 1px solid #555;
-            color: #fff;
+            border: 1px solid #45a29e;
+            color: #66fcf1;
         }
     </style>
 </head>
 <body>
 
 <div id="game-wrapper">
-    <h1>⚔️ ルミナスの勇者 2D ⚔️</h1>
+    <h1>⚔️ ルミナスの勇者 2D HD ⚔️</h1>
     <div id="canvas-container">
         <canvas id="gameCanvas" width="800" height="480"></canvas>
-        <div id="msg-log">【広大なルミナス大陸へようこそ！】<br>矢印キーまたはWASDで移動、[SPACE]で攻撃！草むらやダンジョンで敵を倒してレベルアップしよう！</div>
+        <div id="msg-log">【ルミナス広大世界へようこそ】<br>WASD/矢印キーで移動。[SPACE]で攻撃またはNPCと話す/施設を利用できます！</div>
     </div>
     <div id="ui-bar">
         <div class="stat-group">
@@ -127,12 +127,13 @@
             <div class="stat-item">所持金: <span id="ui-gold" class="val">50</span> G</div>
         </div>
         <div class="stat-group">
-            <div class="stat-item">エリア: <span id="ui-area" class="val" style="color:#00fff0">ルミナス平原</span></div>
+            <div class="stat-item">装備: <span id="ui-weapon" class="val" style="color:#f1c40f">見習いの短剣</span></div>
+            <div class="stat-item">エリア: <span id="ui-area" class="val">ルミナス中央平原</span></div>
             <div class="stat-item">宝珠: <span id="ui-orbs" class="val" style="color:#ff0055">0/4</span></div>
         </div>
     </div>
     <div id="controls-hint">
-        操作方法: <span class="key">WASD</span> / <span class="key">↑←↓→</span> 移動 | <span class="key">SPACE</span> 攻撃 / 決定 | 各エリアのシンボル（町/ダンジョン）に触れると移動できます
+        操作方法: <span class="key">WASD</span> / <span class="key">↑←↓→</span> 移動 | <span class="key">SPACE</span> 攻撃 / NPC対話・ショップ買い出し
     </div>
 </div>
 
@@ -140,20 +141,34 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// Game State
+// --- GAME CONFIG & STATE ---
+const WORLD_WIDTH = 2400;
+const WORLD_HEIGHT = 1600;
+
+const camera = { x: 0, y: 0, width: 800, height: 480 };
+
+// Weapons Database
+const WEAPONS = {
+    dagger: { name: "見習いの短剣", atkBonus: 0, range: 38, color: "#bdc3c7", price: 0 },
+    sword:  { name: "鋼のロングソード", atkBonus: 20, range: 48, color: "#3498db", price: 150 },
+    flame:  { name: "炎霊の魔剣", atkBonus: 45, range: 56, color: "#e74c3c", price: 400 },
+    holy:   { name: "聖剣ルミナス", atkBonus: 90, range: 68, color: "#f1c40f", price: 1000 }
+};
+
 const p = {
-    x: 400, y: 240, size: 20, speed: 3.5,
-    dirX: 0, dirY: 1,
+    x: 400, y: 300, size: 18, speed: 3.8,
+    dirX: 0, dirY: 1, animFrame: 0,
     hp: 100, maxHp: 100,
-    atk: 15,
+    baseAtk: 15,
+    currentWeaponKey: "dagger",
     lv: 1, exp: 0, maxExp: 20,
     gold: 50,
     orbs: { fire: false, wind: false, water: false, shadow: false },
-    weapon: "初期の剣",
     isAttacking: false,
     attackTimer: 0,
     attackRect: null,
-    invincibleTimer: 0
+    invincibleTimer: 0,
+    nearNpc: null
 };
 
 let currentMap = "world"; // world, town_luminous, volcano, silphy, aquaris, granval, demon_castle
@@ -161,29 +176,37 @@ let enemies = [];
 let npcs = [];
 let transitions = [];
 let particles = [];
+let buildings = [];
+let scenery = [];
 
 const keys = {};
 
 window.addEventListener('keydown', e => {
-    keys[e.code] = true;
-    if(e.code === 'Space') {
-        playerAttack();
+    if(e.code === 'Space' && !keys['Space']) {
+        if(p.nearNpc) {
+            interactNpc(p.nearNpc);
+        } else {
+            playerAttack();
+        }
         e.preventDefault();
     }
+    keys[e.code] = true;
 });
+
 window.addEventListener('keyup', e => { keys[e.code] = false; });
 
 function addLog(msg) {
-    const log = document.getElementById('msg-log');
-    log.innerHTML = msg;
+    document.getElementById('msg-log').innerHTML = msg;
 }
 
 function updateUI() {
     document.getElementById('ui-lv').innerText = p.lv;
     document.getElementById('ui-hp').innerText = `${Math.max(0, p.hp)}/${p.maxHp}`;
-    document.getElementById('ui-atk').innerText = p.atk;
+    const totalAtk = p.baseAtk + WEAPONS[p.currentWeaponKey].atkBonus;
+    document.getElementById('ui-atk').innerText = totalAtk;
     document.getElementById('ui-exp').innerText = `${p.exp}/${p.maxExp}`;
     document.getElementById('ui-gold').innerText = p.gold;
+    document.getElementById('ui-weapon').innerText = WEAPONS[p.currentWeaponKey].name;
     
     const orbCount = Object.values(p.orbs).filter(Boolean).length;
     document.getElementById('ui-orbs').innerText = `${orbCount}/4`;
@@ -191,125 +214,135 @@ function updateUI() {
     const mapNames = {
         world: "ルミナス広大世界",
         town_luminous: "ルミナス村（故郷）",
-        volcano: "ボルカノ火山（火の領土）",
-        silphy: "シルフィ迷宮樹海（風の領土）",
-        aquaris: "アクアリス海底・港（水の領土）",
-        granval: "グラン・ヴァル霊峰（影の領土）",
+        volcano: "鉱山街ボルカノ（火の領土）",
+        silphy: "樹上の里シルフィ（風の領土）",
+        aquaris: "港町アクアリス（水の領土）",
+        granval: "聖地グラン・ヴァル（影の領土）",
         demon_castle: "魔王城"
     };
-    document.getElementById('ui-area').innerText = mapNames[currentMap] || "ダンジョン";
+    document.getElementById('ui-area').innerText = mapNames[currentMap] || "エリア";
 }
 
-// Level Up
 function checkLevelUp() {
     if(p.exp >= p.maxExp) {
         p.exp -= p.maxExp;
         p.lv++;
-        p.maxExp = Math.floor(p.maxExp * 1.5);
-        p.maxHp += 20;
+        p.maxExp = Math.floor(p.maxExp * 1.6);
+        p.maxHp += 25;
         p.hp = p.maxHp;
-        p.atk += 5;
-        addLog(`🎉 **レベルアップ！** LV.${p.lv} になった！ (最大HP+20, 攻撃力+5)`);
-        createParticles(p.x, p.y, '#f1c40f', 20);
+        p.baseAtk += 6;
+        addLog(`🎉 **レベルアップ！** LV.${p.lv} に到達！ (最大HP+25, 基礎攻撃力+6)`);
+        createParticles(p.x, p.y, '#f1c40f', 30);
     }
 }
 
-// Map Setup
+// --- MAP LOADING ---
 function loadMap(mapName, startX, startY) {
     currentMap = mapName;
     p.x = startX || 400;
-    p.y = startY || 240;
+    p.y = startY || 300;
     enemies = [];
     npcs = [];
     transitions = [];
+    buildings = [];
+    scenery = [];
 
     if(mapName === "world") {
-        // Town Icons on World Map
-        transitions.push({ x: 380, y: 220, w: 40, h: 40, name: "town_luminous", color: "#2ecc71", label: "ルミナス村" });
-        transitions.push({ x: 120, y: 120, w: 40, h: 40, name: "volcano", color: "#e74c3c", label: "ボルカノ" });
-        transitions.push({ x: 650, y: 120, w: 40, h: 40, name: "silphy", color: "#1abc9c", label: "シルフィ" });
-        transitions.push({ x: 650, y: 350, w: 40, h: 40, name: "aquaris", color: "#3498db", label: "アクアリス" });
-        transitions.push({ x: 120, y: 350, w: 40, h: 40, name: "granval", color: "#9b59b6", label: "グラン・ヴァル" });
-        transitions.push({ x: 380, y: 50, w: 40, h: 40, name: "demon_castle", color: "#34495e", label: "魔王城" });
+        // Broad World Setup
+        transitions.push({ x: 400, y: 350, w: 80, h: 60, name: "town_luminous", color: "#2ecc71", label: "ルミナス村", targetX: 400, targetY: 500 });
+        transitions.push({ x: 300, y: 250, w: 80, h: 60, name: "volcano", color: "#e74c3c", label: "ボルカノ火山", targetX: 400, targetY: 500 });
+        transitions.push({ x: 1900, y: 250, w: 80, h: 60, name: "silphy", color: "#1abc9c", label: "シルフィ樹海", targetX: 400, targetY: 500 });
+        transitions.push({ x: 1900, y: 1300, w: 80, h: 60, name: "aquaris", color: "#3498db", label: "アクアリス港", targetX: 400, targetY: 500 });
+        transitions.push({ x: 300, y: 1300, w: 80, h: 60, name: "granval", color: "#9b59b6", label: "グラン・ヴァル", targetX: 400, targetY: 500 });
+        transitions.push({ x: 1150, y: 100, w: 100, h: 80, name: "demon_castle", color: "#34495e", label: "魔王城", targetX: 400, targetY: 500 });
 
-        // World Field Random Monsters
+        // Scenery: Trees and Rocks scattered across world
+        for(let i=0; i<80; i++) {
+            scenery.push({ x: Math.random() * WORLD_WIDTH, y: Math.random() * WORLD_HEIGHT, type: "tree" });
+        }
+        for(let i=0; i<30; i++) {
+            scenery.push({ x: Math.random() * WORLD_WIDTH, y: Math.random() * WORLD_HEIGHT, type: "rock" });
+        }
+
+        // Spawn Enemies across world
         spawnEnemies([
-            { name: "スライム", hp: 20, atk: 5, exp: 8, gold: 5, color: "#3498db", size: 16 },
-            { name: "ゴブリン", hp: 35, atk: 8, exp: 15, gold: 12, color: "#2ecc71", size: 18 },
-            { name: "野良オーク", hp: 60, atk: 12, exp: 25, gold: 20, color: "#e67e22", size: 22 }
-        ], 8);
-    } 
+            { name: "スライム", hp: 25, atk: 6, exp: 10, gold: 8, color: "#3498db", size: 16, type: "slime" },
+            { name: "ゴブリン", hp: 45, atk: 10, exp: 18, gold: 15, color: "#2ecc71", size: 18, type: "goblin" },
+            { name: "野良オーク", hp: 75, atk: 15, exp: 30, gold: 25, color: "#e67e22", size: 22, type: "orc" }
+        ], 22, WORLD_WIDTH, WORLD_HEIGHT);
+    }
     else if(mapName === "town_luminous") {
-        transitions.push({ x: 380, y: 440, w: 40, h: 30, name: "world", color: "#f39c12", label: "フィールドへ", targetX: 390, targetY: 270 });
+        transitions.push({ x: 370, y: 560, w: 60, h: 30, name: "world", color: "#f39c12", label: "フィールドへ", targetX: 440, targetY: 430 });
         
-        npcs.push({ x: 200, y: 150, name: "長老", text: "長老「魔王を倒すには4つの『四精霊の宝珠』が必要じゃ。各地を巡りレベルを上げて挑むのだ！」", type: "elder" });
-        npcs.push({ x: 550, y: 150, name: "宿屋", text: "宿屋「休んでいきなさい！」(HPが全回復した)", type: "inn" });
-        npcs.push({ x: 380, y: 100, name: "鍛冶屋", text: "鍛冶屋「100Gで武器を強化してやるぞ！」", type: "smith" });
+        buildings.push({ x: 150, y: 120, w: 120, h: 90, roofColor: "#c0392b", label: "長老の館" });
+        buildings.push({ x: 500, y: 120, w: 140, h: 90, roofColor: "#2980b9", label: "宿屋＆武器屋" });
+
+        npcs.push({ x: 210, y: 230, name: "長老村長", type: "elder", text: "長老『魔王結界を破るには世界4カ所に眠る「四精霊の宝珠」が必要じゃ。各地の試練に挑みたまえ！』" });
+        npcs.push({ x: 530, y: 230, name: "宿屋の女将", type: "inn", text: "宿屋『旅の疲れを癒やしていきなさい！』(HPが全回復した！)" });
+        npcs.push({ x: 600, y: 230, name: "伝説の鍛冶屋", type: "smith", text: "鍛冶屋『鉱石と技術で武器を鍛えてやろう！』" });
     }
     else if(mapName === "volcano") {
-        transitions.push({ x: 380, y: 440, w: 40, h: 30, name: "world", color: "#f39c12", label: "フィールドへ", targetX: 130, targetY: 170 });
+        transitions.push({ x: 370, y: 560, w: 60, h: 30, name: "world", color: "#f39c12", label: "フィールドへ", targetX: 340, targetY: 330 });
         
         if(!p.orbs.fire) {
-            enemies.push({ x: 400, y: 120, name: "🔥 炎将ガルダ (BOSS)", hp: 250, maxHp: 250, atk: 18, exp: 120, gold: 200, color: "#e74c3c", size: 36, isBoss: true, orb: "fire" });
+            enemies.push({ x: 400, y: 180, vx: 0, vy: 0, name: "🔥 炎将ガルダ (BOSS)", hp: 300, maxHp: 300, atk: 22, exp: 150, gold: 250, color: "#e74c3c", size: 36, isBoss: true, orb: "fire", bossType: "garuda" });
         }
         spawnEnemies([
-            { name: "マグマゴーレム", hp: 80, atk: 15, exp: 35, gold: 25, color: "#d35400", size: 24 },
-            { name: "火炎インプ", hp: 50, atk: 14, exp: 30, gold: 20, color: "#c0392b", size: 18 }
-        ], 5);
+            { name: "マグマゴーレム", hp: 90, atk: 18, exp: 40, gold: 30, color: "#d35400", size: 24, type: "golem" },
+            { name: "火炎インプ", hp: 60, atk: 16, exp: 35, gold: 22, color: "#c0392b", size: 18, type: "imp" }
+        ], 8, 800, 600);
     }
     else if(mapName === "silphy") {
-        transitions.push({ x: 380, y: 440, w: 40, h: 30, name: "world", color: "#f39c12", label: "フィールドへ", targetX: 650, targetY: 170 });
+        transitions.push({ x: 370, y: 560, w: 60, h: 30, name: "world", color: "#f39c12", label: "フィールドへ", targetX: 1850, targetY: 330 });
         
         if(!p.orbs.wind) {
-            enemies.push({ x: 400, y: 120, name: "🌪️ 幻影妃セレーネ (BOSS)", hp: 320, maxHp: 320, atk: 22, exp: 180, gold: 250, color: "#1abc9c", size: 36, isBoss: true, orb: "wind" });
+            enemies.push({ x: 400, y: 180, vx: 0, vy: 0, name: "🌪️ 幻影妃セレーネ (BOSS)", hp: 420, maxHp: 420, atk: 26, exp: 220, gold: 350, color: "#1abc9c", size: 36, isBoss: true, orb: "wind", bossType: "selene" });
         }
         spawnEnemies([
-            { name: "ウッドエルフ", hp: 90, atk: 18, exp: 40, gold: 30, color: "#16a085", size: 20 },
-            { name: "毒キノコ", hp: 70, atk: 16, exp: 35, gold: 22, color: "#8e44ad", size: 18 }
-        ], 5);
+            { name: "ウッドエルフ", hp: 110, atk: 20, exp: 50, gold: 35, color: "#16a085", size: 20, type: "elf" },
+            { name: "毒キノコ", hp: 80, atk: 18, exp: 42, gold: 28, color: "#8e44ad", size: 18, type: "shroom" }
+        ], 8, 800, 600);
     }
     else if(mapName === "aquaris") {
-        transitions.push({ x: 380, y: 440, w: 40, h: 30, name: "world", color: "#f39c12", label: "フィールドへ", targetX: 650, targetY: 310 });
+        transitions.push({ x: 370, y: 560, w: 60, h: 30, name: "world", color: "#f39c12", label: "フィールドへ", targetX: 1850, targetY: 1230 });
         
         if(!p.orbs.water) {
-            enemies.push({ x: 400, y: 120, name: "🌊 嵐竜ヴァルザー (BOSS)", hp: 450, maxHp: 450, atk: 28, exp: 250, gold: 350, color: "#2980b9", size: 40, isBoss: true, orb: "water" });
+            enemies.push({ x: 400, y: 180, vx: 0, vy: 0, name: "🌊 嵐竜ヴァルザー (BOSS)", hp: 580, maxHp: 580, atk: 32, exp: 320, gold: 500, color: "#2980b9", size: 42, isBoss: true, orb: "water", bossType: "valzer" });
         }
         spawnEnemies([
-            { name: "ディープシャーク", hp: 120, atk: 22, exp: 55, gold: 40, color: "#34495e", size: 22 },
-            { name: "クラーケンクロー", hp: 100, atk: 20, exp: 50, gold: 35, color: "#2980b9", size: 20 }
-        ], 5);
+            { name: "ディープシャーク", hp: 140, atk: 25, exp: 65, gold: 45, color: "#34495e", size: 22, type: "shark" }
+        ], 8, 800, 600);
     }
     else if(mapName === "granval") {
-        transitions.push({ x: 380, y: 440, w: 40, h: 30, name: "world", color: "#f39c12", label: "フィールドへ", targetX: 130, targetY: 310 });
+        transitions.push({ x: 370, y: 560, w: 60, h: 30, name: "world", color: "#f39c12", label: "フィールドへ", targetX: 340, targetY: 1230 });
         
         if(!p.orbs.shadow) {
-            enemies.push({ x: 400, y: 120, name: "💀 冥将ゼノス (BOSS)", hp: 600, maxHp: 600, atk: 35, exp: 350, gold: 500, color: "#8e44ad", size: 40, isBoss: true, orb: "shadow" });
+            enemies.push({ x: 400, y: 180, vx: 0, vy: 0, name: "💀 冥将ゼノス (BOSS)", hp: 750, maxHp: 750, atk: 40, exp: 450, gold: 700, color: "#8e44ad", size: 44, isBoss: true, orb: "shadow", bossType: "xenos" });
         }
         spawnEnemies([
-            { name: "アイスナイト", hp: 160, atk: 28, exp: 70, gold: 50, color: "#bdc3c7", size: 24 },
-            { name: "シャドウソウル", hp: 130, atk: 30, exp: 65, gold: 45, color: "#2c3e50", size: 18 }
-        ], 5);
+            { name: "アイスナイト", hp: 180, atk: 32, exp: 80, gold: 60, color: "#bdc3c7", size: 24, type: "knight" }
+        ], 8, 800, 600);
     }
     else if(mapName === "demon_castle") {
-        transitions.push({ x: 380, y: 440, w: 40, h: 30, name: "world", color: "#f39c12", label: "退却", targetX: 390, targetY: 100 });
+        transitions.push({ x: 370, y: 560, w: 60, h: 30, name: "world", color: "#f39c12", label: "退却", targetX: 1200, targetY: 200 });
         
         const orbCount = Object.values(p.orbs).filter(Boolean).length;
         if(orbCount < 4) {
-            addLog("⚠️ 魔王城の強力な結界に阻まれた！ 4つの宝珠を集めてから来よう！");
+            addLog("⚠️ 魔王城の強固な結界に阻まれた！ 4つの【宝珠】（火・風・水・影）を集めてから挑もう！");
         } else {
-            enemies.push({ x: 400, y: 120, name: "👑 最終魔王ルシフェル (FINAL BOSS)", hp: 1200, maxHp: 1200, atk: 45, exp: 1000, gold: 1000, color: "#e74c3c", size: 50, isBoss: true, isFinalBoss: true });
+            enemies.push({ x: 400, y: 180, vx: 0, vy: 0, name: "👑 最終魔王ルシフェル (FINAL BOSS)", hp: 1500, maxHp: 1500, atk: 50, exp: 2000, gold: 2000, color: "#e74c3c", size: 52, isBoss: true, isFinalBoss: true, bossType: "lucifel" });
         }
     }
 
     updateUI();
 }
 
-function spawnEnemies(types, count) {
+function spawnEnemies(types, count, mapW, mapH) {
     for(let i=0; i<count; i++) {
         const type = types[Math.floor(Math.random() * types.length)];
         enemies.push({
-            x: Math.random() * 700 + 50,
-            y: Math.random() * 300 + 80,
+            x: Math.random() * (mapW - 200) + 100,
+            y: Math.random() * (mapH - 200) + 100,
             name: type.name,
             hp: type.hp, maxHp: type.hp,
             atk: type.atk,
@@ -317,48 +350,94 @@ function spawnEnemies(types, count) {
             gold: type.gold,
             color: type.color,
             size: type.size,
-            vx: (Math.random() - 0.5) * 1.5,
-            vy: (Math.random() - 0.5) * 1.5
+            enemyType: type.type,
+            vx: (Math.random() - 0.5) * 1.6,
+            vy: (Math.random() - 0.5) * 1.6,
+            dead: false
         });
     }
 }
 
-// Player Attack
+// --- NPC INTERACTION (BUG FIXED) ---
+function interactNpc(npc) {
+    addLog(`${npc.name}『${npc.text}』`);
+    if(npc.type === "inn") {
+        p.hp = p.maxHp;
+        createParticles(p.x, p.y, '#2ecc71', 20);
+        updateUI();
+    } 
+    else if(npc.type === "smith") {
+        // Upgrade Weapons Step-by-Step
+        if(p.currentWeaponKey === "dagger") {
+            if(p.gold >= WEAPONS.sword.price) {
+                p.gold -= WEAPONS.sword.price;
+                p.currentWeaponKey = "sword";
+                addLog(`⚔️ 鍛冶屋『【鋼のロングソード】を買い上げたな！攻撃力と攻撃範囲がアップ！』`);
+            } else {
+                addLog(`鍛冶屋『【鋼のロングソード】は 150G 必要だぞ！』`);
+            }
+        } else if(p.currentWeaponKey === "sword") {
+            if(p.gold >= WEAPONS.flame.price) {
+                p.gold -= WEAPONS.flame.price;
+                p.currentWeaponKey = "flame";
+                addLog(`🔥 鍛冶屋『秘伝の【炎霊の魔剣】を鍛え上げたぞ！圧倒的な炎の力を体感せよ！』`);
+            } else {
+                addLog(`鍛冶屋『【炎霊の魔剣】は 400G 必要だぞ！』`);
+            }
+        } else if(p.currentWeaponKey === "flame") {
+            if(p.gold >= WEAPONS.holy.price) {
+                p.gold -= WEAPONS.holy.price;
+                p.currentWeaponKey = "holy";
+                addLog(`🌟 鍛冶屋『伝説の【聖剣ルミナス】が誕生した！世界を救ってこい！』`);
+            } else {
+                addLog(`鍛冶屋『究極の【聖剣ルミナス】は 1000G 必要だ！』`);
+            }
+        } else {
+            addLog(`鍛冶屋『お前はすでに最強の武器を持っている！健闘を祈る！』`);
+        }
+        updateUI();
+    }
+}
+
+// --- PLAYER ATTACK ---
 function playerAttack() {
     if(p.isAttacking) return;
     p.isAttacking = true;
-    p.attackTimer = 12;
+    p.attackTimer = 14;
 
-    // Calc attack rect
-    const range = 35;
-    let ax = p.x + p.dirX * range - 15;
-    let ay = p.y + p.dirY * range - 15;
-    p.attackRect = { x: ax, y: ay, w: 30, h: 30 };
+    const wStat = WEAPONS[p.currentWeaponKey];
+    const reach = wStat.range;
+    let ax = p.x + p.dirX * (reach * 0.7);
+    let ay = p.y + p.dirY * (reach * 0.7);
+    p.attackRect = { x: ax, y: ay, size: reach };
 
-    // Hit test with enemies
-    enemies.forEach((enemy, idx) => {
-        if(checkOverlap({x: ax, y: ay, size: 30}, enemy)) {
-            const dmg = p.atk + Math.floor(Math.random() * 6);
+    const totalAtk = p.baseAtk + wStat.atkBonus;
+
+    enemies.forEach((enemy) => {
+        if(enemy.dead) return;
+        const dist = Math.hypot(ax - enemy.x, ay - enemy.y);
+        if(dist < reach / 2 + enemy.size) {
+            const dmg = totalAtk + Math.floor(Math.random() * 8);
             enemy.hp -= dmg;
-            createParticles(enemy.x, enemy.y, '#e74c3c', 8);
+            createParticles(enemy.x, enemy.y, wStat.color, 12);
             addLog(`⚔️ ${enemy.name} に ${dmg} ダメージ与えた！`);
 
             if(enemy.hp <= 0) {
+                enemy.dead = true;
                 p.exp += enemy.exp;
                 p.gold += enemy.gold;
-                addLog(`✨ ${enemy.name} を倒した！ (+${enemy.exp} EXP, +${enemy.gold} G)`);
+                addLog(`✨ ${enemy.name} を撃破！ (+${enemy.exp} EXP, +${enemy.gold} G)`);
                 
                 if(enemy.orb) {
                     p.orbs[enemy.orb] = true;
-                    addLog(`🌟 **【${enemy.name}】を撃破し、宝珠を手に入れた！**`);
+                    addLog(`🌟 **【${enemy.name}】を打ち倒し、宝珠を手に入れた！**`);
                 }
                 
                 if(enemy.isFinalBoss) {
-                    addLog("🎊 **魔王を撃破した！世界に光が戻った！【GAME CLEAR】**");
-                    alert("🎉 GAME CLEAR! 魔王を倒して世界を救いました！");
+                    addLog("🎉 **【ゲームクリア】最終魔王ルシフェルを滅ぼし、世界に平和が訪れた！**");
+                    alert("🎊 CONGRATULATIONS! 魔王ルシフェルを倒し、ルミナス大陸に光を取り戻しました！");
                 }
 
-                enemies.splice(idx, 1);
                 checkLevelUp();
                 updateUI();
             }
@@ -366,26 +445,21 @@ function playerAttack() {
     });
 }
 
-function checkOverlap(a, b) {
-    const dist = Math.hypot((a.x || a.x + a.size/2) - b.x, (a.y || a.y + a.size/2) - b.y);
-    return dist < (a.size || 20) + (b.size || 20);
-}
-
 function createParticles(x, y, color, count) {
     for(let i=0; i<count; i++) {
         particles.push({
             x: x, y: y,
-            vx: (Math.random() - 0.5) * 4,
-            vy: (Math.random() - 0.5) * 4,
-            life: 15,
+            vx: (Math.random() - 0.5) * 5,
+            vy: (Math.random() - 0.5) * 5,
+            life: 18,
             color: color
         });
     }
 }
 
-// Update Loop
+// --- UPDATE LOOP ---
 function update() {
-    // Movement
+    // Player Movement
     let dx = 0, dy = 0;
     if (keys['KeyW'] || keys['ArrowUp']) dy -= 1;
     if (keys['KeyS'] || keys['ArrowDown']) dy += 1;
@@ -398,11 +472,20 @@ function update() {
         p.dirY = dy / len;
         p.x += (dx / len) * p.speed;
         p.y += (dy / len) * p.speed;
+        p.animFrame += 0.15;
 
-        // Boundaries
-        p.x = Math.max(20, Math.min(780, p.x));
-        p.y = Math.max(20, Math.min(460, p.y));
+        // Map Boundary Clamping
+        const maxW = (currentMap === "world") ? WORLD_WIDTH : 800;
+        const maxH = (currentMap === "world") ? WORLD_HEIGHT : 600;
+        p.x = Math.max(25, Math.min(maxW - 25, p.x));
+        p.y = Math.max(25, Math.min(maxH - 25, p.y));
     }
+
+    // Camera follow player
+    const maxCamX = (currentMap === "world") ? WORLD_WIDTH - camera.width : 0;
+    const maxCamY = (currentMap === "world") ? WORLD_HEIGHT - camera.height : 0;
+    camera.x = Math.max(0, Math.min(maxCamX, p.x - camera.width / 2));
+    camera.y = Math.max(0, Math.min(maxCamY, p.y - camera.height / 2));
 
     // Timers
     if(p.isAttacking) {
@@ -411,53 +494,50 @@ function update() {
     }
     if(p.invincibleTimer > 0) p.invincibleTimer--;
 
-    // Move Enemies & Hit Player
+    // Move & Clean Dead Enemies safely (ARRAY BUG FIXED)
+    enemies = enemies.filter(e => !e.dead);
     enemies.forEach(enemy => {
-        enemy.x += enemy.vx;
-        enemy.y += enemy.vy;
+        if(enemy.vx !== undefined && enemy.vy !== undefined) {
+            enemy.x += enemy.vx;
+            enemy.y += enemy.vy;
 
-        if(enemy.x < 30 || enemy.x > 770) enemy.vx *= -1;
-        if(enemy.y < 30 || enemy.y > 450) enemy.vy *= -1;
+            const boundW = (currentMap === "world") ? WORLD_WIDTH : 800;
+            const boundH = (currentMap === "world") ? WORLD_HEIGHT : 600;
 
-        // Enemy hits player
-        if(p.invincibleTimer === 0 && checkOverlap(p, enemy)) {
-            const dmg = Math.max(1, enemy.atk - Math.floor(p.lv * 1.5));
+            if(enemy.x < 30 || enemy.x > boundW - 30) enemy.vx *= -1;
+            if(enemy.y < 30 || enemy.y > boundH - 30) enemy.vy *= -1;
+        }
+
+        // Hit player
+        if(p.invincibleTimer === 0 && Math.hypot(p.x - enemy.x, p.y - enemy.y) < p.size + enemy.size) {
+            const totalAtk = p.baseAtk + WEAPONS[p.currentWeaponKey].atkBonus;
+            const dmg = Math.max(2, enemy.atk - Math.floor(p.lv * 1.2));
             p.hp -= dmg;
-            p.invincibleTimer = 30; // 0.5 sec invincible
-            createParticles(p.x, p.y, '#ff0000', 10);
+            p.invincibleTimer = 35; // invincible frames
+            createParticles(p.x, p.y, '#e74c3c', 12);
             addLog(`💥 ${enemy.name} から ${dmg} のダメージを受けた！`);
             updateUI();
 
             if(p.hp <= 0) {
-                alert("💀 あなたは倒れてしまった… ルミナス村で復活します。");
+                alert("💀 力尽きてしまった… ルミナス村で復活します。");
                 p.hp = p.maxHp;
-                loadMap("town_luminous", 400, 240);
+                loadMap("town_luminous", 400, 300);
             }
         }
     });
 
     // Check Transitions
     transitions.forEach(t => {
-        if(Math.abs(p.x - (t.x + t.w/2)) < t.w/2 && Math.abs(p.y - (t.y + t.h/2)) < t.h/2) {
-            loadMap(t.name, t.targetX || 400, t.targetY || 240);
+        if(Math.abs(p.x - (t.x + t.w/2)) < t.w/2 + 10 && Math.abs(p.y - (t.y + t.h/2)) < t.h/2 + 10) {
+            loadMap(t.name, t.targetX || 400, t.targetY || 300);
         }
     });
 
-    // Check NPCs (Town interactions)
+    // Check NPC Proximity (BUG FIXED: Just detect near, don't auto-trigger endlessly)
+    p.nearNpc = null;
     npcs.forEach(npc => {
-        if(Math.hypot(p.x - npc.x, p.y - npc.y) < 30) {
-            addLog(npc.text);
-            if(npc.type === "inn") {
-                p.hp = p.maxHp;
-                updateUI();
-            } else if(npc.type === "smith") {
-                if(p.gold >= 100) {
-                    p.gold -= 100;
-                    p.atk += 10;
-                    addLog("⚔️ 鍛冶屋に武器を鍛えてもらった！ (攻撃力+10)");
-                    updateUI();
-                }
-            }
+        if(Math.hypot(p.x - npc.x, p.y - npc.y) < 40) {
+            p.nearNpc = npc;
         }
     });
 
@@ -466,93 +546,233 @@ function update() {
         pt.x += pt.vx;
         pt.y += pt.vy;
         pt.life--;
-        if(pt.life <= 0) particles.splice(i, 1);
     });
+    particles = particles.filter(pt => pt.life > 0);
 }
 
-// Render Loop
+// --- DETAILED GRAPHICS DRAWING ---
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw Background Map Style
-    if(currentMap === "world") ctx.fillStyle = "#27ae60";
-    else if(currentMap === "town_luminous") ctx.fillStyle = "#2d572c";
-    else if(currentMap === "volcano") ctx.fillStyle = "#4a1c1d";
-    else if(currentMap === "silphy") ctx.fillStyle = "#1e4d40";
-    else if(currentMap === "aquaris") ctx.fillStyle = "#1b3b5a";
-    else if(currentMap === "granval") ctx.fillStyle = "#3a3845";
-    else if(currentMap === "demon_castle") ctx.fillStyle = "#2c1d38";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    // Apply camera transform
+    ctx.translate(-camera.x, -camera.y);
 
-    // Draw Transitions / Buildings
+    // 1. Draw Map Terrain Background
+    let bgColor = "#27ae60";
+    if(currentMap === "town_luminous") bgColor = "#2ecc71";
+    else if(currentMap === "volcano") bgColor = "#3a191a";
+    else if(currentMap === "silphy") bgColor = "#113f36";
+    else if(currentMap === "aquaris") bgColor = "#1c3144";
+    else if(currentMap === "granval") bgColor = "#2c2a38";
+    else if(currentMap === "demon_castle") bgColor = "#23192e";
+
+    const bgW = (currentMap === "world") ? WORLD_WIDTH : 800;
+    const bgH = (currentMap === "world") ? WORLD_HEIGHT : 600;
+
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, bgW, bgH);
+
+    // Draw Grid / Paths on World Map
+    ctx.strokeStyle = "rgba(255,255,255,0.05)";
+    ctx.lineWidth = 1;
+    for(let x=0; x<bgW; x+=100) {
+        ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x, bgH); ctx.stroke();
+    }
+    for(let y=0; y<bgH; y+=100) {
+        ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(bgW, y); ctx.stroke();
+    }
+
+    // 2. Draw Scenery (Trees & Rocks)
+    scenery.forEach(s => {
+        if(s.type === "tree") {
+            // Detailed Tree
+            ctx.fillStyle = "rgba(0,0,0,0.2)";
+            ctx.beginPath(); ctx.ellipse(s.x, s.y+15, 18, 8, 0, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#7f8c8d";
+            ctx.fillRect(s.x-4, s.y-5, 8, 20);
+            ctx.fillStyle = "#27ae60";
+            ctx.beginPath(); ctx.arc(s.x, s.y-18, 22, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#2ecc71";
+            ctx.beginPath(); ctx.arc(s.x-5, s.y-22, 14, 0, Math.PI*2); ctx.fill();
+        } else if(s.type === "rock") {
+            ctx.fillStyle = "#7f8c8d";
+            ctx.beginPath(); ctx.arc(s.x, s.y, 14, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#95a5a6";
+            ctx.beginPath(); ctx.arc(s.x-3, s.y-3, 9, 0, Math.PI*2); ctx.fill();
+        }
+    });
+
+    // 3. Draw Buildings
+    buildings.forEach(b => {
+        // Shadow
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.fillRect(b.x+10, b.y+10, b.w, b.h);
+        // Wall
+        ctx.fillStyle = "#f39c12";
+        ctx.fillRect(b.x, b.y, b.w, b.h);
+        // Roof
+        ctx.fillStyle = b.roofColor;
+        ctx.beginPath();
+        ctx.moveTo(b.x - 10, b.y);
+        ctx.lineTo(b.x + b.w / 2, b.y - 35);
+        ctx.lineTo(b.x + b.w + 10, b.y);
+        ctx.closePath();
+        ctx.fill();
+        // Door & Windows
+        ctx.fillStyle = "#7e5109";
+        ctx.fillRect(b.x + b.w/2 - 12, b.y + b.h - 30, 24, 30);
+        ctx.fillStyle = "#f1c40f";
+        ctx.fillRect(b.x + 15, b.y + 20, 18, 18);
+        ctx.fillRect(b.x + b.w - 33, b.y + 20, 18, 18);
+        // Label
+        ctx.fillStyle = "#fff";
+        ctx.font = "bold 13px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(b.label, b.x + b.w/2, b.y - 40);
+    });
+
+    // 4. Draw Transitions
     transitions.forEach(t => {
         ctx.fillStyle = t.color;
         ctx.fillRect(t.x, t.y, t.w, t.h);
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(t.x, t.y, t.w, t.h);
         ctx.fillStyle = "#fff";
-        ctx.font = "12px sans-serif";
+        ctx.font = "bold 13px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(t.label, t.x + t.w/2, t.y - 5);
+        ctx.fillText(t.label, t.x + t.w/2, t.y - 8);
     });
 
-    // Draw NPCs
+    // 5. Draw NPCs
     npcs.forEach(npc => {
-        ctx.fillStyle = "#f1c40f";
-        ctx.beginPath();
-        ctx.arc(npc.x, npc.y, 12, 0, Math.PI * 2);
-        ctx.fill();
+        // Shadow
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.beginPath(); ctx.ellipse(npc.x, npc.y+12, 12, 6, 0, 0, Math.PI*2); ctx.fill();
+        // Body
+        ctx.fillStyle = (npc.type === "elder") ? "#9b59b6" : (npc.type === "inn") ? "#e67e22" : "#7f8c8d";
+        ctx.beginPath(); ctx.arc(npc.x, npc.y, 14, 0, Math.PI*2); ctx.fill();
+        // Head
+        ctx.fillStyle = "#ffeaa7";
+        ctx.beginPath(); ctx.arc(npc.x, npc.y - 6, 9, 0, Math.PI*2); ctx.fill();
+        // Label
         ctx.fillStyle = "#fff";
         ctx.font = "12px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(npc.name, npc.x, npc.y - 15);
+        ctx.fillText(npc.name, npc.x, npc.y - 22);
+
+        // Interaction prompt
+        if(p.nearNpc === npc) {
+            ctx.fillStyle = "#f1c40f";
+            ctx.font = "bold 13px sans-serif";
+            ctx.fillText("[SPACE] で話す", npc.x, npc.y - 38);
+        }
     });
 
-    // Draw Enemies
+    // 6. Draw Enemies (Detailed Visuals)
     enemies.forEach(e => {
-        ctx.fillStyle = e.color;
-        ctx.beginPath();
-        ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
-        ctx.fill();
+        // Shadow
+        ctx.fillStyle = "rgba(0,0,0,0.3)";
+        ctx.beginPath(); ctx.ellipse(e.x, e.y+e.size*0.8, e.size, e.size*0.4, 0, 0, Math.PI*2); ctx.fill();
 
-        // HP bar for Bosses / Enemies
-        ctx.fillStyle = "#333";
-        ctx.fillRect(e.x - e.size, e.y - e.size - 8, e.size * 2, 5);
+        ctx.fillStyle = e.color;
+        if(e.enemyType === "slime") {
+            const squish = Math.sin(Date.now() * 0.008) * 3;
+            ctx.beginPath();
+            ctx.ellipse(e.x, e.y, e.size + squish, e.size - squish, 0, 0, Math.PI*2);
+            ctx.fill();
+            // Slime Eyes & Shine
+            ctx.fillStyle = "#fff";
+            ctx.beginPath(); ctx.arc(e.x - 4, e.y - 3, 3, 0, Math.PI*2); ctx.arc(e.x + 4, e.y - 3, 3, 0, Math.PI*2); ctx.fill();
+            ctx.fillStyle = "#000";
+            ctx.beginPath(); ctx.arc(e.x - 4, e.y - 3, 1.5, 0, Math.PI*2); ctx.arc(e.x + 4, e.y - 3, 1.5, 0, Math.PI*2); ctx.fill();
+        } 
+        else if(e.isBoss) {
+            // Boss Glowing Aura
+            ctx.fillStyle = e.color;
+            ctx.globalAlpha = 0.3;
+            ctx.beginPath(); ctx.arc(e.x, e.y, e.size + 12 + Math.sin(Date.now()*0.01)*5, 0, Math.PI*2); ctx.fill();
+            ctx.globalAlpha = 1.0;
+            // Main Boss Body
+            ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, Math.PI*2); ctx.fill();
+            // Horns / Crown
+            ctx.fillStyle = "#f1c40f";
+            ctx.beginPath();
+            ctx.moveTo(e.x - 15, e.y - e.size);
+            ctx.lineTo(e.x, e.y - e.size - 18);
+            ctx.lineTo(e.x + 15, e.y - e.size);
+            ctx.fill();
+        } 
+        else {
+            ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, Math.PI*2); ctx.fill();
+        }
+
+        // HP bar
+        ctx.fillStyle = "#000";
+        ctx.fillRect(e.x - e.size, e.y - e.size - 10, e.size * 2, 6);
         ctx.fillStyle = "#e74c3c";
-        ctx.fillRect(e.x - e.size, e.y - e.size - 8, (e.size * 2) * (e.hp / e.maxHp), 5);
+        ctx.fillRect(e.x - e.size, e.y - e.size - 10, (e.size * 2) * Math.max(0, e.hp / e.maxHp), 6);
 
         ctx.fillStyle = "#fff";
         ctx.font = "11px sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText(e.name, e.x, e.y - e.size - 12);
+        ctx.fillText(e.name, e.x, e.y - e.size - 14);
     });
 
-    // Draw Player
-    if(p.invincibleTimer % 4 < 2) { // Flashing when hurt
-        ctx.fillStyle = "#f39c12";
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "#fff";
-        ctx.lineWidth = 2;
-        ctx.stroke();
+    // 7. Draw Player (Detailed Character)
+    if(p.invincibleTimer % 4 < 2) {
+        // Shadow
+        ctx.fillStyle = "rgba(0,0,0,0.35)";
+        ctx.beginPath(); ctx.ellipse(p.x, p.y+14, 14, 7, 0, 0, Math.PI*2); ctx.fill();
 
-        // Player Direction Indicator
+        // Cloak
+        ctx.fillStyle = "#e74c3c";
+        ctx.beginPath(); ctx.arc(p.x - p.dirX*6, p.y - p.dirY*6 + 4, 12, 0, Math.PI*2); ctx.fill();
+
+        // Body / Armor
+        ctx.fillStyle = "#34495e";
+        ctx.beginPath(); ctx.arc(p.x, p.y + 2, 12, 0, Math.PI*2); ctx.fill();
+
+        // Head & Hair
+        ctx.fillStyle = "#ffeaa7";
+        ctx.beginPath(); ctx.arc(p.x, p.y - 6, 8, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#f1c40f"; // Blonde hair
+        ctx.beginPath(); ctx.arc(p.x, p.y - 9, 8, Math.PI, Math.PI*2); ctx.fill();
+
+        // Direction Indicator
         ctx.fillStyle = "#fff";
         ctx.beginPath();
-        ctx.arc(p.x + p.dirX * 12, p.y + p.dirY * 12, 4, 0, Math.PI * 2);
+        ctx.arc(p.x + p.dirX * 10, p.y + p.dirY * 10, 3, 0, Math.PI * 2);
         ctx.fill();
     }
 
-    // Draw Attack Swing
+    // 8. Draw Attack Arc / Swing Weapon Effect
     if(p.isAttacking && p.attackRect) {
-        ctx.fillStyle = "rgba(241, 196, 15, 0.6)";
-        ctx.fillRect(p.attackRect.x, p.attackRect.y, p.attackRect.w, p.attackRect.h);
+        const wStat = WEAPONS[p.currentWeaponKey];
+        ctx.strokeStyle = wStat.color;
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, wStat.range, Math.atan2(p.dirY, p.dirX) - 0.8, Math.atan2(p.dirY, p.dirX) + 0.8);
+        ctx.stroke();
+
+        ctx.fillStyle = wStat.color;
+        ctx.globalAlpha = 0.25;
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.arc(p.x, p.y, wStat.range, Math.atan2(p.dirY, p.dirX) - 0.8, Math.atan2(p.dirY, p.dirX) + 0.8);
+        ctx.closePath();
+        ctx.fill();
+        ctx.globalAlpha = 1.0;
     }
 
-    // Draw Particles
+    // 9. Draw Particles
     particles.forEach(pt => {
         ctx.fillStyle = pt.color;
-        ctx.fillRect(pt.x, pt.y, 3, 3);
+        ctx.fillRect(pt.x, pt.y, 4, 4);
     });
+
+    ctx.restore(); // Restore Camera
 }
 
 function gameLoop() {
@@ -562,8 +782,9 @@ function gameLoop() {
 }
 
 // Start Game
-loadMap("world", 400, 240);
+loadMap("world", 400, 300);
 gameLoop();
 
 </script>
 </body>
+</html>
