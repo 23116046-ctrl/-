@@ -90,7 +90,7 @@
 <body>
 
 <div id="game-wrapper">
-    <h1>⚔️ ルミナスの勇者 - Turn-Based Tactics ⚔️</h1>
+    <h1>⚔️ ルミナスの勇者 - Detail Graphics Edition ⚔️</h1>
     <div id="canvas-container">
         <canvas id="gameCanvas" width="800" height="480"></canvas>
     </div>
@@ -115,14 +115,12 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-// --- GAME STATE MANAGEMENT ---
 let gameState = "FIELD"; // "FIELD", "DIALOGUE", "BATTLE"
 
 const WORLD_WIDTH = 1600;
 const WORLD_HEIGHT = 1200;
 const camera = { x: 0, y: 0, width: 800, height: 480 };
 
-// --- WEAPON DATA ---
 const WEAPONS = {
     sword: { name: "鋼のロングソード", type: "斬撃", atk: 25, hitRate: 0.95, desc: "標準的で扱いやすい万能剣" },
     dagger: { name: "影縫いの短剣", type: "刺突", atk: 18, hitRate: 0.98, critRate: 0.3, desc: "会心の一撃が出やすい軽量刃" },
@@ -130,9 +128,8 @@ const WEAPONS = {
     holy: { name: "聖光のメイス", type: "聖なる光", atk: 35, hitRate: 0.9, mpCost: 5, desc: "アンデッドや魔王に強い聖なる槌" }
 };
 
-// --- PLAYER ---
 const p = {
-    x: 400, y: 300, size: 18, speed: 3.8, dirX: 0, dirY: 1,
+    x: 400, y: 300, size: 22, speed: 3.8, dirX: 0, dirY: 1,
     hp: 120, maxHp: 120, mp: 40, maxMp: 40,
     baseAtk: 15, gold: 100, lv: 1, exp: 0,
     inventory: ["sword", "dagger", "axe", "holy"],
@@ -140,16 +137,14 @@ const p = {
     isGuarding: false
 };
 
-// --- CURRENT DIALOGUE / BATTLE TARGET ---
 let currentTarget = null;
 let battleLog = "戦闘開始！コマンドを選択してください。";
-let battleMenuMode = "MAIN"; // "MAIN", "WEAPON_SELECT", "SKILL_SELECT"
+let battleMenuMode = "MAIN";
 
-// --- MAP OBJECTS ---
 let enemies = [
-    { x: 600, y: 300, name: "野生のゴブリン", hp: 70, maxHp: 70, atk: 14, type: "goblin", size: 20 },
-    { x: 1000, y: 500, name: "マグマゴーレム", hp: 160, maxHp: 160, atk: 24, type: "golem", size: 28 },
-    { x: 1300, y: 200, name: "最終魔王ルシフェル", hp: 600, maxHp: 600, atk: 42, type: "lucifel", size: 40, isBoss: true }
+    { x: 600, y: 300, name: "野生のゴブリン", hp: 70, maxHp: 70, atk: 14, type: "goblin", size: 24 },
+    { x: 1000, y: 500, name: "マグマゴーレム", hp: 160, maxHp: 160, atk: 24, type: "golem", size: 30 },
+    { x: 1300, y: 200, name: "最終魔王ルシフェル", hp: 600, maxHp: 600, atk: 42, type: "lucifel", size: 45, isBoss: true }
 ];
 
 let npcs = [
@@ -161,18 +156,11 @@ const keys = {};
 
 window.addEventListener('keydown', e => {
     keys[e.code] = true;
-
-    if (gameState === "FIELD") {
-        if (e.code === 'Space') {
-            checkFieldInteraction();
-        }
-    } 
-    else if (gameState === "DIALOGUE") {
-        if (e.code === 'Space') {
-            gameState = "FIELD";
-        }
-    } 
-    else if (gameState === "BATTLE") {
+    if (gameState === "FIELD" && e.code === 'Space') {
+        checkFieldInteraction();
+    } else if (gameState === "DIALOGUE" && e.code === 'Space') {
+        gameState = "FIELD";
+    } else if (gameState === "BATTLE") {
         handleBattleInput(e.code);
     }
 });
@@ -192,9 +180,7 @@ function updateUI() {
     else if (gameState === "BATTLE") { stateEl.innerText = "ターン制バトル"; stateEl.style.color = "#f87171"; }
 }
 
-// --- FIELD INTERACTION ---
 function checkFieldInteraction() {
-    // Check NPC interaction
     for (let npc of npcs) {
         if (Math.hypot(p.x - npc.x, p.y - npc.y) < 45) {
             currentTarget = npc;
@@ -203,7 +189,6 @@ function checkFieldInteraction() {
             return;
         }
     }
-    // Check Enemy interaction
     for (let enemy of enemies) {
         if (Math.hypot(p.x - enemy.x, p.y - enemy.y) < 45) {
             startBattle(enemy);
@@ -221,15 +206,13 @@ function startBattle(enemy) {
     updateUI();
 }
 
-// --- BATTLE COMMAND SYSTEM ---
 function handleBattleInput(code) {
     if (battleMenuMode === "MAIN") {
         if (code === 'Digit1') executePlayerAttack();
         else if (code === 'Digit2') battleMenuMode = "WEAPON_SELECT";
         else if (code === 'Digit3') battleMenuMode = "SKILL_SELECT";
         else if (code === 'Digit4') executePlayerGuard();
-    } 
-    else if (battleMenuMode === "WEAPON_SELECT") {
+    } else if (battleMenuMode === "WEAPON_SELECT") {
         if (code === 'Digit1') p.equippedWeapon = "sword";
         else if (code === 'Digit2') p.equippedWeapon = "dagger";
         else if (code === 'Digit3') p.equippedWeapon = "axe";
@@ -237,8 +220,7 @@ function handleBattleInput(code) {
         battleLog = `🗡️ 武器を【${WEAPONS[p.equippedWeapon].name}】に変更した！`;
         battleMenuMode = "MAIN";
         updateUI();
-    } 
-    else if (battleMenuMode === "SKILL_SELECT") {
+    } else if (battleMenuMode === "SKILL_SELECT") {
         if (code === 'Digit1') executeSkill("heal");
         else if (code === 'Digit2') executeSkill("fire");
         else battleMenuMode = "MAIN";
@@ -255,7 +237,6 @@ function executePlayerAttack() {
     } else {
         let dmg = p.baseAtk + w.atk + Math.floor(Math.random() * 8);
         if (isCrit) dmg = Math.floor(dmg * 1.8);
-
         currentTarget.hp -= dmg;
         battleLog = `💥 ${w.name} で攻撃！ ${currentTarget.name} に ${dmg} のダメージ！${isCrit ? " (痛恨の一撃！)" : ""}`;
     }
@@ -292,7 +273,6 @@ function executeSkill(type) {
 
 function enemyTurn() {
     if (currentTarget.hp <= 0) return;
-
     let dmg = currentTarget.atk + Math.floor(Math.random() * 6);
     if (p.isGuarding) dmg = Math.floor(dmg * 0.5);
 
@@ -327,7 +307,6 @@ function checkBattleEnd() {
     return false;
 }
 
-// --- UPDATE FIELD ---
 function update() {
     if (gameState !== "FIELD") return;
 
@@ -346,19 +325,334 @@ function update() {
         p.y = Math.max(20, Math.min(WORLD_HEIGHT - 20, p.y));
     }
 
-    // Touch Enemy on field -> trigger battle
     enemies.forEach(e => {
         if (Math.hypot(p.x - e.x, p.y - e.y) < p.size + e.size) {
             startBattle(e);
         }
     });
 
-    // Camera center
     camera.x = Math.max(0, Math.min(WORLD_WIDTH - camera.width, p.x - camera.width / 2));
     camera.y = Math.max(0, Math.min(WORLD_HEIGHT - camera.height, p.y - camera.height / 2));
 }
 
-// --- RENDER FUNCTIONS ---
+// ==========================================
+// 🎨 DETAILED DRAWING FUNCTIONS (細部描画)
+// ==========================================
+
+// 1. HERO (PLAYER)
+function drawDetailedPlayer(ctx, scale = 1) {
+    ctx.save();
+    ctx.scale(scale, scale);
+
+    // Hair Back
+    ctx.fillStyle = "#1e3a8a";
+    ctx.beginPath(); ctx.arc(0, -5, 24, Math.PI, 0); ctx.fill();
+
+    // Ears
+    ctx.fillStyle = "#fcd34d";
+    ctx.beginPath(); ctx.ellipse(-20, 2, 5, 8, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(20, 2, 5, 8, 0, 0, Math.PI*2); ctx.fill();
+
+    // Face Structure
+    ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.fill();
+
+    // Hero Hair Front & Headband
+    ctx.fillStyle = "#2563eb";
+    ctx.beginPath();
+    ctx.moveTo(-22, -8); ctx.lineTo(-10, -26); ctx.lineTo(0, -12);
+    ctx.lineTo(10, -26); ctx.lineTo(22, -8); ctx.lineTo(18, -2); ctx.lineTo(-18, -2);
+    ctx.closePath(); ctx.fill();
+
+    // Red Headband Gem
+    ctx.fillStyle = "#ef4444";
+    ctx.beginPath(); ctx.arc(0, -14, 4, 0, Math.PI*2); ctx.fill();
+
+    // Eyes
+    ctx.fillStyle = "#0f172a";
+    ctx.beginPath();
+    ctx.ellipse(-7, 0, 3, 5, 0, 0, Math.PI*2);
+    ctx.ellipse(7, 0, 3, 5, 0, 0, Math.PI*2);
+    ctx.fill();
+
+    // Eye Highlights
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.arc(-8, -2, 1.5, 0, Math.PI*2);
+    ctx.arc(6, -2, 1.5, 0, Math.PI*2);
+    ctx.fill();
+
+    // Eyebrows
+    ctx.strokeStyle = "#1e3a8a";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-11, -7); ctx.lineTo(-3, -6);
+    ctx.moveTo(11, -7); ctx.lineTo(3, -6);
+    ctx.stroke();
+
+    // Nose
+    ctx.fillStyle = "#f59e0b";
+    ctx.beginPath();
+    ctx.moveTo(0, 2); ctx.lineTo(-2, 7); ctx.lineTo(2, 7); ctx.fill();
+
+    // Mouth
+    ctx.strokeStyle = "#b45309";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(0, 8, 5, 0.1, Math.PI - 0.1); ctx.stroke();
+
+    ctx.restore();
+}
+
+// 2. GOBLIN
+function drawDetailedGoblin(ctx, scale = 1) {
+    ctx.save();
+    ctx.scale(scale, scale);
+
+    // Pointy Ears
+    ctx.fillStyle = "#15803d";
+    ctx.beginPath(); ctx.moveTo(-15, -5); ctx.lineTo(-40, -18); ctx.lineTo(-18, 12); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(15, -5); ctx.lineTo(40, -18); ctx.lineTo(18, 12); ctx.fill();
+    // Inner Ears
+    ctx.fillStyle = "#166534";
+    ctx.beginPath(); ctx.moveTo(-18, -3); ctx.lineTo(-35, -15); ctx.lineTo(-20, 8); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(18, -3); ctx.lineTo(35, -15); ctx.lineTo(20, 8); ctx.fill();
+
+    // Face Shape
+    ctx.fillStyle = "#22c55e";
+    ctx.beginPath(); ctx.ellipse(0, 2, 22, 18, 0, 0, Math.PI*2); ctx.fill();
+
+    // Yellow Fiery Eyes
+    ctx.fillStyle = "#facc15";
+    ctx.beginPath();
+    ctx.ellipse(-8, -3, 6, 4, -0.2, 0, Math.PI*2);
+    ctx.ellipse(8, -3, 6, 4, 0.2, 0, Math.PI*2);
+    ctx.fill();
+
+    // Slit Pupils
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.rect(-9, -6, 2, 6);
+    ctx.rect(7, -6, 2, 6);
+    ctx.fill();
+
+    // Sharp Nose
+    ctx.fillStyle = "#15803d";
+    ctx.beginPath();
+    ctx.moveTo(0, -2); ctx.lineTo(-4, 6); ctx.lineTo(4, 6); ctx.closePath(); ctx.fill();
+
+    // Mouth with Fangs
+    ctx.fillStyle = "#052e16";
+    ctx.beginPath(); ctx.arc(0, 8, 12, 0, Math.PI); ctx.fill();
+
+    // White Fangs
+    ctx.fillStyle = "#f8fafc";
+    ctx.beginPath();
+    ctx.moveTo(-8, 8); ctx.lineTo(-6, 14); ctx.lineTo(-4, 8);
+    ctx.moveTo(8, 8); ctx.lineTo(6, 14); ctx.lineTo(4, 8);
+    ctx.fill();
+
+    ctx.restore();
+}
+
+// 3. GOLEM
+function drawDetailedGolem(ctx, scale = 1) {
+    ctx.save();
+    ctx.scale(scale, scale);
+
+    // Outer Stone Head
+    ctx.fillStyle = "#57534e";
+    ctx.beginPath();
+    ctx.moveTo(-25, -25); ctx.lineTo(25, -25);
+    ctx.lineTo(30, 0); ctx.lineTo(20, 25);
+    ctx.lineTo(-20, 25); ctx.lineTo(-30, 0);
+    ctx.closePath(); ctx.fill();
+
+    // Stone Texture Lines
+    ctx.strokeStyle = "#292524";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-15, -25); ctx.lineTo(-5, -5); ctx.lineTo(-20, 15);
+    ctx.moveTo(10, -25); ctx.lineTo(15, 0); ctx.lineTo(5, 25);
+    ctx.stroke();
+
+    // Magma Glowing Visor/Eyes
+    ctx.fillStyle = "#f97316";
+    ctx.shadowColor = "#f97316";
+    ctx.shadowBlur = 10;
+    ctx.fillRect(-18, -10, 36, 8);
+
+    ctx.fillStyle = "#fef08a";
+    ctx.fillRect(-12, -8, 8, 4);
+    ctx.fillRect(4, -8, 8, 4);
+    ctx.shadowBlur = 0;
+
+    // Rock Nose Bridge
+    ctx.fillStyle = "#44403c";
+    ctx.beginPath(); ctx.moveTo(0, -5); ctx.lineTo(-5, 8); ctx.lineTo(5, 8); ctx.fill();
+
+    // Jagged Stone Mouth
+    ctx.fillStyle = "#1c1917";
+    ctx.fillRect(-14, 12, 28, 6);
+
+    ctx.restore();
+}
+
+// 4. VILLAGE ELDER (長老)
+function drawDetailedElder(ctx, scale = 1) {
+    ctx.save();
+    ctx.scale(scale, scale);
+
+    // Large Wizard Hat Background
+    ctx.fillStyle = "#1e1b4b";
+    ctx.beginPath(); ctx.moveTo(-35, -10); ctx.lineTo(0, -60); ctx.lineTo(35, -10); ctx.fill();
+
+    // Wrinkled Face
+    ctx.fillStyle = "#fde047";
+    ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.fill();
+
+    // Ears
+    ctx.fillStyle = "#eab308";
+    ctx.beginPath(); ctx.arc(-20, 0, 5, 0, Math.PI*2); ctx.arc(20, 0, 5, 0, Math.PI*2); ctx.fill();
+
+    // Eyes (Closed Gentle Expression)
+    ctx.strokeStyle = "#451a03";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(-8, -3, 4, Math.PI, 0);
+    ctx.arc(8, -3, 4, Math.PI, 0);
+    ctx.stroke();
+
+    // Bulbous Nose
+    ctx.fillStyle = "#ca8a04";
+    ctx.beginPath(); ctx.arc(0, 2, 4, 0, Math.PI*2); ctx.fill();
+
+    // Long Beard
+    ctx.fillStyle = "#f8fafc";
+    ctx.beginPath();
+    ctx.moveTo(-18, 5);
+    ctx.quadraticCurveTo(0, 45, 18, 5);
+    ctx.quadraticCurveTo(0, 20, -18, 5);
+    ctx.fill();
+
+    // Eyebrows
+    ctx.beginPath();
+    ctx.moveTo(-14, -10); ctx.lineTo(-4, -8);
+    ctx.moveTo(14, -10); ctx.lineTo(4, -8);
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+// 5. MERCHANT (商人)
+function drawDetailedMerchant(ctx, scale = 1) {
+    ctx.save();
+    ctx.scale(scale, scale);
+
+    // Merchant Hood
+    ctx.fillStyle = "#c2410c";
+    ctx.beginPath(); ctx.arc(0, -5, 25, Math.PI, 0); ctx.fill();
+
+    // Face
+    ctx.fillStyle = "#fed7aa";
+    ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI*2); ctx.fill();
+
+    // Ears
+    ctx.beginPath(); ctx.arc(-18, 2, 4, 0, Math.PI*2); ctx.arc(18, 2, 4, 0, Math.PI*2); ctx.fill();
+
+    // Cunning Eyes
+    ctx.fillStyle = "#451a03";
+    ctx.beginPath();
+    ctx.arc(-7, -2, 3, 0, Math.PI*2);
+    ctx.arc(7, -2, 3, 0, Math.PI*2);
+    ctx.fill();
+
+    // Prominent Nose
+    ctx.fillStyle = "#f97316";
+    ctx.beginPath(); ctx.moveTo(0, -2); ctx.lineTo(-4, 6); ctx.lineTo(2, 6); ctx.fill();
+
+    // Mustache & Smile
+    ctx.strokeStyle = "#7c2d12";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-10, 8); ctx.lineTo(0, 6); ctx.lineTo(10, 8);
+    ctx.stroke();
+
+    ctx.restore();
+}
+
+// 6. DEMON KING LUCIFEL (魔王ルシフェル)
+function drawDetailedLucifel(ctx, scale = 1) {
+    ctx.save();
+    ctx.scale(scale, scale);
+
+    // Red Glowing Aura
+    ctx.fillStyle = "rgba(220, 38, 38, 0.25)";
+    ctx.beginPath(); ctx.arc(0, 0, 65, 0, Math.PI*2); ctx.fill();
+
+    // Huge Curved Horns
+    ctx.fillStyle = "#450a0a";
+    ctx.beginPath();
+    ctx.moveTo(-20, -20); ctx.quadraticCurveTo(-60, -70, -45, -20);
+    ctx.moveTo(20, -20); ctx.quadraticCurveTo(60, -70, 45, -20);
+    ctx.fill();
+
+    // Pointed Demon Ears
+    ctx.fillStyle = "#7f1d1d";
+    ctx.beginPath(); ctx.moveTo(-25, 0); ctx.lineTo(-55, -10); ctx.lineTo(-25, 15); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(25, 0); ctx.lineTo(55, -10); ctx.lineTo(25, 15); ctx.fill();
+
+    // Main Face Structure
+    ctx.fillStyle = "#991b1b";
+    ctx.beginPath(); ctx.ellipse(0, 0, 30, 35, 0, 0, Math.PI*2); ctx.fill();
+
+    // Crimson Eye Sockets
+    ctx.fillStyle = "#000";
+    ctx.beginPath();
+    ctx.ellipse(-12, -8, 9, 6, -0.2, 0, Math.PI*2);
+    ctx.ellipse(12, -8, 9, 6, 0.2, 0, Math.PI*2);
+    ctx.fill();
+
+    // Glowing Eyes & Pupils
+    ctx.fillStyle = "#facc15";
+    ctx.beginPath();
+    ctx.arc(-12, -8, 4, 0, Math.PI*2);
+    ctx.arc(12, -8, 4, 0, Math.PI*2);
+    ctx.fill();
+    ctx.fillStyle = "#dc2626";
+    ctx.beginPath();
+    ctx.arc(-12, -8, 2, 0, Math.PI*2);
+    ctx.arc(12, -8, 2, 0, Math.PI*2);
+    ctx.fill();
+
+    // Demon Nose
+    ctx.fillStyle = "#450a0a";
+    ctx.beginPath();
+    ctx.moveTo(0, -2); ctx.lineTo(-5, 8); ctx.lineTo(5, 8); ctx.fill();
+
+    // Mouth with Massive Fangs
+    ctx.fillStyle = "#000";
+    ctx.beginPath(); ctx.arc(0, 15, 15, 0, Math.PI); ctx.fill();
+
+    // Sharp White Fangs
+    ctx.fillStyle = "#fff";
+    ctx.beginPath();
+    ctx.moveTo(-10, 15); ctx.lineTo(-7, 24); ctx.lineTo(-4, 15);
+    ctx.moveTo(10, 15); ctx.lineTo(7, 24); ctx.lineTo(4, 15);
+    ctx.fill();
+
+    ctx.restore();
+}
+
+// ROUTER FOR CHARACTER RENDERING
+function drawCharacter(ctx, type, scale = 1) {
+    if (type === "player") drawDetailedPlayer(ctx, scale);
+    else if (type === "goblin") drawDetailedGoblin(ctx, scale);
+    else if (type === "golem") drawDetailedGolem(ctx, scale);
+    else if (type === "lucifel") drawDetailedLucifel(ctx, scale);
+    else if (type === "elder") drawDetailedElder(ctx, scale);
+    else if (type === "merchant") drawDetailedMerchant(ctx, scale);
+}
+
+// --- RENDER SCENES ---
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -371,7 +665,6 @@ function draw() {
     }
 }
 
-// 1. FIELD DRAWING
 function drawField() {
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
@@ -380,7 +673,7 @@ function drawField() {
     ctx.fillStyle = "#1e293b";
     ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
-    // Grid Lines
+    // Grid
     ctx.strokeStyle = "rgba(255,255,255,0.05)";
     for (let x = 0; x < WORLD_WIDTH; x += 80) {
         ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_HEIGHT); ctx.stroke();
@@ -388,49 +681,41 @@ function drawField() {
 
     // NPCs
     npcs.forEach(npc => {
-        ctx.fillStyle = "#fbbf24";
-        ctx.beginPath(); ctx.arc(npc.x, npc.y, 14, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = "#fff"; ctx.font = "12px sans-serif"; ctx.fillText(npc.name, npc.x - 18, npc.y - 20);
+        ctx.save();
+        ctx.translate(npc.x, npc.y);
+        drawCharacter(ctx, npc.type, 0.7);
+        ctx.restore();
+        ctx.fillStyle = "#fff"; ctx.font = "12px sans-serif"; ctx.textAlign = "center";
+        ctx.fillText(npc.name, npc.x, npc.y - 25);
     });
 
     // Enemies
     enemies.forEach(e => {
-        ctx.fillStyle = e.isBoss ? "#ef4444" : "#a855f7";
-        ctx.beginPath(); ctx.arc(e.x, e.y, e.size, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = "#fff"; ctx.font = "12px sans-serif"; ctx.fillText(e.name, e.x - 25, e.y - e.size - 8);
+        ctx.save();
+        ctx.translate(e.x, e.y);
+        drawCharacter(ctx, e.type, e.isBoss ? 0.9 : 0.7);
+        ctx.restore();
+        ctx.fillStyle = "#fff"; ctx.font = "12px sans-serif"; ctx.textAlign = "center";
+        ctx.fillText(e.name, e.x, e.y - e.size - 10);
     });
 
     // Player
-    ctx.fillStyle = "#38bdf8";
-    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill();
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    drawCharacter(ctx, "player", 0.7);
+    ctx.restore();
 
     ctx.restore();
 }
 
-// 2. FACE-TO-FACE DIALOGUE VIEW (対面視点)
 function drawDialogueView() {
-    // Dark Backdrop
     ctx.fillStyle = "#0f172a";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Render Face-to-Face Portrait
+    // Front-view Large Character Face Rendering
     ctx.save();
-    ctx.translate(canvas.width / 2, 180);
-
-    if (currentTarget.type === "elder") {
-        // Detailed Village Elder Portrait
-        ctx.fillStyle = "#fef08a"; ctx.beginPath(); ctx.arc(0, 0, 65, 0, Math.PI*2); ctx.fill(); // Head
-        ctx.fillStyle = "#e2e8f0"; ctx.beginPath(); ctx.arc(0, 30, 45, 0, Math.PI); ctx.fill(); // Long Beard
-        ctx.fillStyle = "#475569"; ctx.fillRect(-70, -75, 140, 25); // Hat Rim
-        ctx.fillRect(-45, -110, 90, 40); // Hat Top
-        ctx.fillStyle = "#0f172a"; ctx.fillRect(-25, -15, 12, 12); ctx.fillRect(15, -15, 12, 12); // Eyes
-    } 
-    else if (currentTarget.type === "merchant") {
-        ctx.fillStyle = "#fed7aa"; ctx.beginPath(); ctx.arc(0, 0, 60, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = "#ea580c"; ctx.beginPath(); ctx.arc(0, -20, 65, Math.PI, Math.PI*2); ctx.fill(); // Hood
-        ctx.fillStyle = "#0f172a"; ctx.fillRect(-20, -10, 10, 10); ctx.fillRect(10, -10, 10, 10);
-    }
-
+    ctx.translate(canvas.width / 2, 170);
+    drawCharacter(ctx, currentTarget.type, 2.3);
     ctx.restore();
 
     // Dialogue Box Window
@@ -442,6 +727,7 @@ function drawDialogueView() {
 
     ctx.fillStyle = "#fbbf24";
     ctx.font = "bold 18px sans-serif";
+    ctx.textAlign = "left";
     ctx.fillText(`【 ${currentTarget.name} 】`, 60, 345);
 
     ctx.fillStyle = "#fff";
@@ -453,75 +739,17 @@ function drawDialogueView() {
     ctx.fillText("Press [SPACE] to close", 600, 425);
 }
 
-// 3. FRONT-VIEW TURN-BASED BATTLE SCENE (対面視点戦闘)
 function drawBattleView() {
-    // Battle Background Gradient
     let bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
     bgGrad.addColorStop(0, "#1e1b4b");
     bgGrad.addColorStop(1, "#020617");
     ctx.fillStyle = bgGrad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // 🎨 DETAILED ENEMY FRONT VIEW (対面描画)
+    // Front-view Enemy Detail
     ctx.save();
     ctx.translate(canvas.width / 2, 170);
-
-    if (currentTarget.type === "lucifel") {
-        // 魔王ルシフェルの詳細グラフィック (Detailed Demon King Face & Horns)
-        // Red Glowing Aura
-        ctx.fillStyle = "rgba(239, 68, 68, 0.25)";
-        ctx.beginPath(); ctx.arc(0, 0, 110 + Math.sin(Date.now()*0.005)*8, 0, Math.PI*2); ctx.fill();
-
-        // Demon Crown / Giant Horns
-        ctx.fillStyle = "#450a0a";
-        ctx.beginPath();
-        ctx.moveTo(-70, -30); ctx.lineTo(-110, -110); ctx.lineTo(-40, -60);
-        ctx.moveTo(70, -30); ctx.lineTo(110, -110); ctx.lineTo(40, -60);
-        ctx.fill();
-
-        // Face Structure
-        ctx.fillStyle = "#7f1d1d";
-        ctx.beginPath(); ctx.arc(0, 0, 75, 0, Math.PI*2); ctx.fill();
-
-        // Glowing Eyes
-        ctx.fillStyle = "#fef08a";
-        ctx.beginPath();
-        ctx.arc(-28, -12, 14, 0, Math.PI*2);
-        ctx.arc(28, -12, 14, 0, Math.PI*2);
-        ctx.fill();
-        ctx.fillStyle = "#dc2626";
-        ctx.beginPath();
-        ctx.arc(-28, -12, 6, 0, Math.PI*2);
-        ctx.arc(28, -12, 6, 0, Math.PI*2);
-        ctx.fill();
-
-        // Fangs / Mouth
-        ctx.fillStyle = "#000";
-        ctx.beginPath(); ctx.arc(0, 35, 22, 0, Math.PI); ctx.fill();
-        ctx.fillStyle = "#fff";
-        ctx.beginPath();
-        ctx.moveTo(-12, 35); ctx.lineTo(-6, 48); ctx.lineTo(0, 35);
-        ctx.moveTo(12, 35); ctx.lineTo(6, 48); ctx.lineTo(0, 35);
-        ctx.fill();
-    }
-    else if (currentTarget.type === "goblin") {
-        ctx.fillStyle = "#15803d";
-        ctx.beginPath(); ctx.arc(0, 0, 55, 0, Math.PI*2); ctx.fill(); // Head
-        // Ears
-        ctx.beginPath(); ctx.moveTo(-50, 0); ctx.lineTo(-85, -25); ctx.lineTo(-40, -25); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(50, 0); ctx.lineTo(85, -25); ctx.lineTo(40, -25); ctx.fill();
-        // Red Eyes
-        ctx.fillStyle = "#ef4444";
-        ctx.fillRect(-22, -12, 10, 10); ctx.fillRect(12, -12, 10, 10);
-    }
-    else {
-        // Golem
-        ctx.fillStyle = "#78716c";
-        ctx.fillRect(-65, -65, 130, 130);
-        ctx.fillStyle = "#f59e0b";
-        ctx.fillRect(-35, -20, 70, 12);
-    }
-
+    drawCharacter(ctx, currentTarget.type, currentTarget.isBoss ? 2.5 : 2.0);
     ctx.restore();
 
     // Enemy Name & HP Bar
@@ -535,7 +763,7 @@ function drawBattleView() {
     ctx.fillStyle = "#ef4444";
     ctx.fillRect(250, 50, 300 * Math.max(0, currentTarget.hp / currentTarget.maxHp), 14);
 
-    // Battle Log Box
+    // Battle Log
     ctx.fillStyle = "rgba(15, 23, 42, 0.9)";
     ctx.strokeStyle = "#0284c7";
     ctx.lineWidth = 2;
@@ -546,7 +774,7 @@ function drawBattleView() {
     ctx.textAlign = "left";
     ctx.fillText(battleLog, 45, 310);
 
-    // Turn Command Menu (コマンド UI)
+    // Turn Command Menu
     ctx.fillStyle = "rgba(15, 23, 42, 0.95)";
     ctx.strokeStyle = "#fbbf24";
     ctx.fillRect(30, 340, 740, 125);
@@ -557,14 +785,12 @@ function drawBattleView() {
         drawMenuButton("2. 武器換装 (装備変更)", 420, 360, 320, 40, "#fbbf24");
         drawMenuButton("3. 魔法・特技", 60, 410, 320, 40, "#a855f7");
         drawMenuButton("4. 防御 (半減)", 420, 410, 320, 40, "#4ade80");
-    } 
-    else if (battleMenuMode === "WEAPON_SELECT") {
+    } else if (battleMenuMode === "WEAPON_SELECT") {
         drawMenuButton("1. ロングソード (斬撃)", 60, 360, 320, 40, "#38bdf8");
         drawMenuButton("2. 影縫いの短剣 (刺突)", 420, 360, 320, 40, "#38bdf8");
         drawMenuButton("3. ギガントアックス (打撃)", 60, 410, 320, 40, "#38bdf8");
         drawMenuButton("4. 聖光のメイス (聖光)", 420, 410, 320, 40, "#38bdf8");
-    } 
-    else if (battleMenuMode === "SKILL_SELECT") {
+    } else if (battleMenuMode === "SKILL_SELECT") {
         drawMenuButton("1. 聖なる回復 (10 MP)", 60, 360, 320, 40, "#a855f7");
         drawMenuButton("2. 爆炎呪文 (15 MP)", 420, 360, 320, 40, "#a855f7");
         drawMenuButton("3. キャンセル", 60, 410, 320, 40, "#94a3b8");
@@ -584,7 +810,6 @@ function drawMenuButton(text, x, y, w, h, color) {
     ctx.fillText(text, x + 15, y + 25);
 }
 
-// Main Loop
 function gameLoop() {
     update();
     draw();
