@@ -3,470 +3,567 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ルミナスの勇者 - Open Scenario RPG</title>
+    <title>ルミナスの勇者 - 2D Open World Action RPG</title>
     <style>
-        body {
-            background-color: #121212;
-            color: #e0e0e0;
-            font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
-            margin: 0;
-            padding: 20px;
-            display: flex;
-            justify-content: center;
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
         }
-        #game-container {
+        body {
+            background-color: #0f0f1d;
+            color: #fff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        #game-wrapper {
+            position: relative;
+            background-color: #1a1a2e;
+            border: 3px solid #e94560;
+            border-radius: 12px;
+            box-shadow: 0 0 20px rgba(233, 69, 96, 0.4);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 840px;
             width: 100%;
-            max-width: 800px;
-            background-color: #1e1e1e;
-            border: 2px solid #444;
-            border-radius: 8px;
-            padding: 20px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }
         h1 {
-            text-align: center;
-            color: #f39c12;
-            margin-top: 0;
-            border-bottom: 2px solid #444;
-            padding-bottom: 10px;
+            margin: 0 0 10px 0;
+            font-size: 22px;
+            color: #f1c40f;
+            text-shadow: 2px 2px 4px #000;
+            letter-spacing: 2px;
         }
-        #status-bar {
+        #canvas-container {
+            position: relative;
+            width: 800px;
+            height: 480px;
+            border: 2px solid #16213e;
+            border-radius: 8px;
+            overflow: hidden;
+            background-color: #000;
+        }
+        canvas {
+            display: block;
+            background-color: #333;
+        }
+        #ui-bar {
+            width: 100%;
             display: flex;
             justify-content: space-between;
-            background-color: #2a2a2a;
-            padding: 10px 15px;
-            border-radius: 5px;
-            margin-bottom: 15px;
+            align-items: center;
+            background: #16213e;
+            padding: 8px 15px;
+            margin-top: 10px;
+            border-radius: 6px;
+            font-size: 14px;
             font-weight: bold;
-            flex-wrap: wrap;
-            gap: 10px;
         }
-        #status-bar div {
-            font-size: 0.95rem;
+        .stat-group {
+            display: flex;
+            gap: 15px;
         }
-        #display-area {
-            background-color: #000;
-            border: 1px solid #333;
-            border-radius: 5px;
-            height: 250px;
-            padding: 15px;
-            overflow-y: auto;
-            margin-bottom: 15px;
-            line-height: 1.6;
-            white-space: pre-wrap;
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
         }
-        #controls {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
+        .val {
+            color: #f1c40f;
         }
-        button {
-            background-color: #34495e;
+        #msg-log {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.75);
+            border: 1px solid #e94560;
             color: #fff;
-            border: none;
-            padding: 12px;
+            padding: 8px 12px;
             border-radius: 5px;
-            font-size: 1rem;
-            cursor: pointer;
-            transition: background 0.2s;
+            font-size: 13px;
+            pointer-events: none;
+            max-height: 70px;
+            overflow-y: auto;
+            line-height: 1.4;
         }
-        button:hover {
-            background-color: #2c3e50;
+        #controls-hint {
+            margin-top: 10px;
+            font-size: 12px;
+            color: #a0a0a0;
+            text-align: center;
         }
-        button:disabled {
-            background-color: #555;
-            cursor: not-allowed;
-            opacity: 0.6;
-        }
-        .orbs {
-            color: #e74c3c;
+        .key {
+            background: #333;
+            padding: 2px 6px;
+            border-radius: 4px;
+            border: 1px solid #555;
+            color: #fff;
         }
     </style>
 </head>
 <body>
 
-<div id="game-container">
-    <h1>ルミナスの勇者</h1>
-    
-    <div id="status-bar">
-        <div>HP: <span id="hp">100</span>/<span id="max-hp">100</span></div>
-        <div>所持金: <span id="gold">50</span> G</div>
-        <div>武器: <span id="weapon">古びた剣</span></div>
-        <div>場所: <span id="location">ルミナス村</span></div>
-        <div>宝珠: <span id="orbs" class="orbs">0/4</span></div>
+<div id="game-wrapper">
+    <h1>⚔️ ルミナスの勇者 2D ⚔️</h1>
+    <div id="canvas-container">
+        <canvas id="gameCanvas" width="800" height="480"></canvas>
+        <div id="msg-log">【広大なルミナス大陸へようこそ！】<br>矢印キーまたはWASDで移動、[SPACE]で攻撃！草むらやダンジョンで敵を倒してレベルアップしよう！</div>
     </div>
-
-    <div id="display-area"></div>
-
-    <div id="controls"></div>
+    <div id="ui-bar">
+        <div class="stat-group">
+            <div class="stat-item">LV: <span id="ui-lv" class="val">1</span></div>
+            <div class="stat-item">HP: <span id="ui-hp" class="val">100/100</span></div>
+            <div class="stat-item">ATK: <span id="ui-atk" class="val">15</span></div>
+            <div class="stat-item">EXP: <span id="ui-exp" class="val">0/20</span></div>
+            <div class="stat-item">所持金: <span id="ui-gold" class="val">50</span> G</div>
+        </div>
+        <div class="stat-group">
+            <div class="stat-item">エリア: <span id="ui-area" class="val" style="color:#00fff0">ルミナス平原</span></div>
+            <div class="stat-item">宝珠: <span id="ui-orbs" class="val" style="color:#ff0055">0/4</span></div>
+        </div>
+    </div>
+    <div id="controls-hint">
+        操作方法: <span class="key">WASD</span> / <span class="key">↑←↓→</span> 移動 | <span class="key">SPACE</span> 攻撃 / 決定 | 各エリアのシンボル（町/ダンジョン）に触れると移動できます
+    </div>
 </div>
 
 <script>
-// --- ゲームデータと状態 ---
-const gameState = {
-    hp: 100,
-    maxHp: 100,
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Game State
+const p = {
+    x: 400, y: 240, size: 20, speed: 3.5,
+    dirX: 0, dirY: 1,
+    hp: 100, maxHp: 100,
     atk: 15,
+    lv: 1, exp: 0, maxExp: 20,
     gold: 50,
-    weapon: "古びた剣",
-    location: "luminous",
-    orbs: {
-        fire: false,
-        wind: false,
-        water: false,
-        shadow: false
-    },
-    flags: {
-        metGrandpa: false,
-        hasShip: false,
-        guildQuestDone: false
-    }
+    orbs: { fire: false, wind: false, water: false, shadow: false },
+    weapon: "初期の剣",
+    isAttacking: false,
+    attackTimer: 0,
+    attackRect: null,
+    invincibleTimer: 0
 };
 
-const display = document.getElementById('display-area');
-const controls = document.getElementById('controls');
+let currentMap = "world"; // world, town_luminous, volcano, silphy, aquaris, granval, demon_castle
+let enemies = [];
+let npcs = [];
+let transitions = [];
+let particles = [];
 
-function log(text) {
-    display.innerText += text + "\n\n";
-    display.scrollTop = display.scrollHeight;
+const keys = {};
+
+window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if(e.code === 'Space') {
+        playerAttack();
+        e.preventDefault();
+    }
+});
+window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+function addLog(msg) {
+    const log = document.getElementById('msg-log');
+    log.innerHTML = msg;
 }
 
-function clearLog() {
-    display.innerText = "";
-}
-
-function updateStatus() {
-    document.getElementById('hp').innerText = gameState.hp;
-    document.getElementById('max-hp').innerText = gameState.maxHp;
-    document.getElementById('gold').innerText = gameState.gold;
-    document.getElementById('weapon').innerText = gameState.weapon;
+function updateUI() {
+    document.getElementById('ui-lv').innerText = p.lv;
+    document.getElementById('ui-hp').innerText = `${Math.max(0, p.hp)}/${p.maxHp}`;
+    document.getElementById('ui-atk').innerText = p.atk;
+    document.getElementById('ui-exp').innerText = `${p.exp}/${p.maxExp}`;
+    document.getElementById('ui-gold').innerText = p.gold;
     
-    const orbCount = Object.values(gameState.orbs).filter(Boolean).length;
-    document.getElementById('orbs').innerText = `${orbCount}/4`;
+    const orbCount = Object.values(p.orbs).filter(Boolean).length;
+    document.getElementById('ui-orbs').innerText = `${orbCount}/4`;
 
-    const locNames = {
-        luminous: "ルミナス村",
-        bazaar: "商業都市グランバザール",
-        volcano: "鉱山街ボルカノ",
-        silphy: "樹上の村シルフィ",
-        aquaris: "港町アクアリス",
-        granval: "聖地グラン・ヴァル",
-        demonCastle: "魔王城"
+    const mapNames = {
+        world: "ルミナス広大世界",
+        town_luminous: "ルミナス村（故郷）",
+        volcano: "ボルカノ火山（火の領土）",
+        silphy: "シルフィ迷宮樹海（風の領土）",
+        aquaris: "アクアリス海底・港（水の領土）",
+        granval: "グラン・ヴァル霊峰（影の領土）",
+        demon_castle: "魔王城"
     };
-    document.getElementById('location').innerText = locNames[gameState.location] || "未知の土地";
+    document.getElementById('ui-area').innerText = mapNames[currentMap] || "ダンジョン";
 }
 
-function setButtons(buttonConfig) {
-    controls.innerHTML = "";
-    buttonConfig.forEach(cfg => {
-        const btn = document.createElement('button');
-        btn.innerText = cfg.text;
-        btn.onclick = cfg.action;
-        if (cfg.disabled) btn.disabled = true;
-        controls.appendChild(btn);
-    });
+// Level Up
+function checkLevelUp() {
+    if(p.exp >= p.maxExp) {
+        p.exp -= p.maxExp;
+        p.lv++;
+        p.maxExp = Math.floor(p.maxExp * 1.5);
+        p.maxHp += 20;
+        p.hp = p.maxHp;
+        p.atk += 5;
+        addLog(`🎉 **レベルアップ！** LV.${p.lv} になった！ (最大HP+20, 攻撃力+5)`);
+        createParticles(p.x, p.y, '#f1c40f', 20);
+    }
 }
 
-// --- 戦闘システム ---
-function startBattle(enemyName, enemyHp, enemyAtk, onWin) {
-    clearLog();
-    log(`【戦闘発生！】${enemyName}が現れた！`);
-    
-    let currentEnemyHp = enemyHp;
+// Map Setup
+function loadMap(mapName, startX, startY) {
+    currentMap = mapName;
+    p.x = startX || 400;
+    p.y = startY || 240;
+    enemies = [];
+    npcs = [];
+    transitions = [];
 
-    function renderBattleUI() {
-        setButtons([
-            {
-                text: "攻撃する",
-                action: () => {
-                    clearLog();
-                    const damage = Math.max(5, gameState.atk + Math.floor(Math.random() * 5));
-                    currentEnemyHp -= damage;
-                    log(`あなたの攻撃！ ${enemyName}に ${damage} のダメージ！`);
+    if(mapName === "world") {
+        // Town Icons on World Map
+        transitions.push({ x: 380, y: 220, w: 40, h: 40, name: "town_luminous", color: "#2ecc71", label: "ルミナス村" });
+        transitions.push({ x: 120, y: 120, w: 40, h: 40, name: "volcano", color: "#e74c3c", label: "ボルカノ" });
+        transitions.push({ x: 650, y: 120, w: 40, h: 40, name: "silphy", color: "#1abc9c", label: "シルフィ" });
+        transitions.push({ x: 650, y: 350, w: 40, h: 40, name: "aquaris", color: "#3498db", label: "アクアリス" });
+        transitions.push({ x: 120, y: 350, w: 40, h: 40, name: "granval", color: "#9b59b6", label: "グラン・ヴァル" });
+        transitions.push({ x: 380, y: 50, w: 40, h: 40, name: "demon_castle", color: "#34495e", label: "魔王城" });
 
-                    if (currentEnemyHp <= 0) {
-                        log(`【勝利！】${enemyName}を倒した！`);
-                        onWin();
-                        return;
-                    }
+        // World Field Random Monsters
+        spawnEnemies([
+            { name: "スライム", hp: 20, atk: 5, exp: 8, gold: 5, color: "#3498db", size: 16 },
+            { name: "ゴブリン", hp: 35, atk: 8, exp: 15, gold: 12, color: "#2ecc71", size: 18 },
+            { name: "野良オーク", hp: 60, atk: 12, exp: 25, gold: 20, color: "#e67e22", size: 22 }
+        ], 8);
+    } 
+    else if(mapName === "town_luminous") {
+        transitions.push({ x: 380, y: 440, w: 40, h: 30, name: "world", color: "#f39c12", label: "フィールドへ", targetX: 390, targetY: 270 });
+        
+        npcs.push({ x: 200, y: 150, name: "長老", text: "長老「魔王を倒すには4つの『四精霊の宝珠』が必要じゃ。各地を巡りレベルを上げて挑むのだ！」", type: "elder" });
+        npcs.push({ x: 550, y: 150, name: "宿屋", text: "宿屋「休んでいきなさい！」(HPが全回復した)", type: "inn" });
+        npcs.push({ x: 380, y: 100, name: "鍛冶屋", text: "鍛冶屋「100Gで武器を強化してやるぞ！」", type: "smith" });
+    }
+    else if(mapName === "volcano") {
+        transitions.push({ x: 380, y: 440, w: 40, h: 30, name: "world", color: "#f39c12", label: "フィールドへ", targetX: 130, targetY: 170 });
+        
+        if(!p.orbs.fire) {
+            enemies.push({ x: 400, y: 120, name: "🔥 炎将ガルダ (BOSS)", hp: 250, maxHp: 250, atk: 18, exp: 120, gold: 200, color: "#e74c3c", size: 36, isBoss: true, orb: "fire" });
+        }
+        spawnEnemies([
+            { name: "マグマゴーレム", hp: 80, atk: 15, exp: 35, gold: 25, color: "#d35400", size: 24 },
+            { name: "火炎インプ", hp: 50, atk: 14, exp: 30, gold: 20, color: "#c0392b", size: 18 }
+        ], 5);
+    }
+    else if(mapName === "silphy") {
+        transitions.push({ x: 380, y: 440, w: 40, h: 30, name: "world", color: "#f39c12", label: "フィールドへ", targetX: 650, targetY: 170 });
+        
+        if(!p.orbs.wind) {
+            enemies.push({ x: 400, y: 120, name: "🌪️ 幻影妃セレーネ (BOSS)", hp: 320, maxHp: 320, atk: 22, exp: 180, gold: 250, color: "#1abc9c", size: 36, isBoss: true, orb: "wind" });
+        }
+        spawnEnemies([
+            { name: "ウッドエルフ", hp: 90, atk: 18, exp: 40, gold: 30, color: "#16a085", size: 20 },
+            { name: "毒キノコ", hp: 70, atk: 16, exp: 35, gold: 22, color: "#8e44ad", size: 18 }
+        ], 5);
+    }
+    else if(mapName === "aquaris") {
+        transitions.push({ x: 380, y: 440, w: 40, h: 30, name: "world", color: "#f39c12", label: "フィールドへ", targetX: 650, targetY: 310 });
+        
+        if(!p.orbs.water) {
+            enemies.push({ x: 400, y: 120, name: "🌊 嵐竜ヴァルザー (BOSS)", hp: 450, maxHp: 450, atk: 28, exp: 250, gold: 350, color: "#2980b9", size: 40, isBoss: true, orb: "water" });
+        }
+        spawnEnemies([
+            { name: "ディープシャーク", hp: 120, atk: 22, exp: 55, gold: 40, color: "#34495e", size: 22 },
+            { name: "クラーケンクロー", hp: 100, atk: 20, exp: 50, gold: 35, color: "#2980b9", size: 20 }
+        ], 5);
+    }
+    else if(mapName === "granval") {
+        transitions.push({ x: 380, y: 440, w: 40, h: 30, name: "world", color: "#f39c12", label: "フィールドへ", targetX: 130, targetY: 310 });
+        
+        if(!p.orbs.shadow) {
+            enemies.push({ x: 400, y: 120, name: "💀 冥将ゼノス (BOSS)", hp: 600, maxHp: 600, atk: 35, exp: 350, gold: 500, color: "#8e44ad", size: 40, isBoss: true, orb: "shadow" });
+        }
+        spawnEnemies([
+            { name: "アイスナイト", hp: 160, atk: 28, exp: 70, gold: 50, color: "#bdc3c7", size: 24 },
+            { name: "シャドウソウル", hp: 130, atk: 30, exp: 65, gold: 45, color: "#2c3e50", size: 18 }
+        ], 5);
+    }
+    else if(mapName === "demon_castle") {
+        transitions.push({ x: 380, y: 440, w: 40, h: 30, name: "world", color: "#f39c12", label: "退却", targetX: 390, targetY: 100 });
+        
+        const orbCount = Object.values(p.orbs).filter(Boolean).length;
+        if(orbCount < 4) {
+            addLog("⚠️ 魔王城の強力な結界に阻まれた！ 4つの宝珠を集めてから来よう！");
+        } else {
+            enemies.push({ x: 400, y: 120, name: "👑 最終魔王ルシフェル (FINAL BOSS)", hp: 1200, maxHp: 1200, atk: 45, exp: 1000, gold: 1000, color: "#e74c3c", size: 50, isBoss: true, isFinalBoss: true });
+        }
+    }
 
-                    // 敵の反撃
-                    const enemyDamage = Math.max(2, enemyAtk + Math.floor(Math.random() * 5));
-                    gameState.hp -= enemyDamage;
-                    log(`${enemyName}の攻撃！ あなたは ${enemyDamage} のダメージを受けた！`);
-                    updateStatus();
+    updateUI();
+}
 
-                    if (gameState.hp <= 0) {
-                        gameState.hp = 0;
-                        updateStatus();
-                        log(`\n【敗北】あなたは倒れてしまった…`);
-                        setButtons([{
-                            text: "ルミナス村で復活",
-                            action: () => {
-                                gameState.hp = gameState.maxHp;
-                                goToLocation('luminous');
-                            }
-                        }]);
-                    } else {
-                        renderBattleUI();
-                    }
+function spawnEnemies(types, count) {
+    for(let i=0; i<count; i++) {
+        const type = types[Math.floor(Math.random() * types.length)];
+        enemies.push({
+            x: Math.random() * 700 + 50,
+            y: Math.random() * 300 + 80,
+            name: type.name,
+            hp: type.hp, maxHp: type.hp,
+            atk: type.atk,
+            exp: type.exp,
+            gold: type.gold,
+            color: type.color,
+            size: type.size,
+            vx: (Math.random() - 0.5) * 1.5,
+            vy: (Math.random() - 0.5) * 1.5
+        });
+    }
+}
+
+// Player Attack
+function playerAttack() {
+    if(p.isAttacking) return;
+    p.isAttacking = true;
+    p.attackTimer = 12;
+
+    // Calc attack rect
+    const range = 35;
+    let ax = p.x + p.dirX * range - 15;
+    let ay = p.y + p.dirY * range - 15;
+    p.attackRect = { x: ax, y: ay, w: 30, h: 30 };
+
+    // Hit test with enemies
+    enemies.forEach((enemy, idx) => {
+        if(checkOverlap({x: ax, y: ay, size: 30}, enemy)) {
+            const dmg = p.atk + Math.floor(Math.random() * 6);
+            enemy.hp -= dmg;
+            createParticles(enemy.x, enemy.y, '#e74c3c', 8);
+            addLog(`⚔️ ${enemy.name} に ${dmg} ダメージ与えた！`);
+
+            if(enemy.hp <= 0) {
+                p.exp += enemy.exp;
+                p.gold += enemy.gold;
+                addLog(`✨ ${enemy.name} を倒した！ (+${enemy.exp} EXP, +${enemy.gold} G)`);
+                
+                if(enemy.orb) {
+                    p.orbs[enemy.orb] = true;
+                    addLog(`🌟 **【${enemy.name}】を撃破し、宝珠を手に入れた！**`);
                 }
-            },
-            {
-                text: "回復薬を使う (20G)",
-                action: () => {
-                    clearLog();
-                    if (gameState.gold >= 20) {
-                        gameState.gold -= 20;
-                        const heal = 40;
-                        gameState.hp = Math.min(gameState.maxHp, gameState.hp + heal);
-                        log(`回復薬を使用し、HPが ${heal} 回復した！`);
-                        updateStatus();
-                    } else {
-                        log(`お金が足りない！`);
-                    }
-                    renderBattleUI();
+                
+                if(enemy.isFinalBoss) {
+                    addLog("🎊 **魔王を撃破した！世界に光が戻った！【GAME CLEAR】**");
+                    alert("🎉 GAME CLEAR! 魔王を倒して世界を救いました！");
+                }
+
+                enemies.splice(idx, 1);
+                checkLevelUp();
+                updateUI();
+            }
+        }
+    });
+}
+
+function checkOverlap(a, b) {
+    const dist = Math.hypot((a.x || a.x + a.size/2) - b.x, (a.y || a.y + a.size/2) - b.y);
+    return dist < (a.size || 20) + (b.size || 20);
+}
+
+function createParticles(x, y, color, count) {
+    for(let i=0; i<count; i++) {
+        particles.push({
+            x: x, y: y,
+            vx: (Math.random() - 0.5) * 4,
+            vy: (Math.random() - 0.5) * 4,
+            life: 15,
+            color: color
+        });
+    }
+}
+
+// Update Loop
+function update() {
+    // Movement
+    let dx = 0, dy = 0;
+    if (keys['KeyW'] || keys['ArrowUp']) dy -= 1;
+    if (keys['KeyS'] || keys['ArrowDown']) dy += 1;
+    if (keys['KeyA'] || keys['ArrowLeft']) dx -= 1;
+    if (keys['KeyD'] || keys['ArrowRight']) dx += 1;
+
+    if (dx !== 0 || dy !== 0) {
+        const len = Math.hypot(dx, dy);
+        p.dirX = dx / len;
+        p.dirY = dy / len;
+        p.x += (dx / len) * p.speed;
+        p.y += (dy / len) * p.speed;
+
+        // Boundaries
+        p.x = Math.max(20, Math.min(780, p.x));
+        p.y = Math.max(20, Math.min(460, p.y));
+    }
+
+    // Timers
+    if(p.isAttacking) {
+        p.attackTimer--;
+        if(p.attackTimer <= 0) p.isAttacking = false;
+    }
+    if(p.invincibleTimer > 0) p.invincibleTimer--;
+
+    // Move Enemies & Hit Player
+    enemies.forEach(enemy => {
+        enemy.x += enemy.vx;
+        enemy.y += enemy.vy;
+
+        if(enemy.x < 30 || enemy.x > 770) enemy.vx *= -1;
+        if(enemy.y < 30 || enemy.y > 450) enemy.vy *= -1;
+
+        // Enemy hits player
+        if(p.invincibleTimer === 0 && checkOverlap(p, enemy)) {
+            const dmg = Math.max(1, enemy.atk - Math.floor(p.lv * 1.5));
+            p.hp -= dmg;
+            p.invincibleTimer = 30; // 0.5 sec invincible
+            createParticles(p.x, p.y, '#ff0000', 10);
+            addLog(`💥 ${enemy.name} から ${dmg} のダメージを受けた！`);
+            updateUI();
+
+            if(p.hp <= 0) {
+                alert("💀 あなたは倒れてしまった… ルミナス村で復活します。");
+                p.hp = p.maxHp;
+                loadMap("town_luminous", 400, 240);
+            }
+        }
+    });
+
+    // Check Transitions
+    transitions.forEach(t => {
+        if(Math.abs(p.x - (t.x + t.w/2)) < t.w/2 && Math.abs(p.y - (t.y + t.h/2)) < t.h/2) {
+            loadMap(t.name, t.targetX || 400, t.targetY || 240);
+        }
+    });
+
+    // Check NPCs (Town interactions)
+    npcs.forEach(npc => {
+        if(Math.hypot(p.x - npc.x, p.y - npc.y) < 30) {
+            addLog(npc.text);
+            if(npc.type === "inn") {
+                p.hp = p.maxHp;
+                updateUI();
+            } else if(npc.type === "smith") {
+                if(p.gold >= 100) {
+                    p.gold -= 100;
+                    p.atk += 10;
+                    addLog("⚔️ 鍛冶屋に武器を鍛えてもらった！ (攻撃力+10)");
+                    updateUI();
                 }
             }
-        ]);
+        }
+    });
+
+    // Update Particles
+    particles.forEach((pt, i) => {
+        pt.x += pt.vx;
+        pt.y += pt.vy;
+        pt.life--;
+        if(pt.life <= 0) particles.splice(i, 1);
+    });
+}
+
+// Render Loop
+function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Background Map Style
+    if(currentMap === "world") ctx.fillStyle = "#27ae60";
+    else if(currentMap === "town_luminous") ctx.fillStyle = "#2d572c";
+    else if(currentMap === "volcano") ctx.fillStyle = "#4a1c1d";
+    else if(currentMap === "silphy") ctx.fillStyle = "#1e4d40";
+    else if(currentMap === "aquaris") ctx.fillStyle = "#1b3b5a";
+    else if(currentMap === "granval") ctx.fillStyle = "#3a3845";
+    else if(currentMap === "demon_castle") ctx.fillStyle = "#2c1d38";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw Transitions / Buildings
+    transitions.forEach(t => {
+        ctx.fillStyle = t.color;
+        ctx.fillRect(t.x, t.y, t.w, t.h);
+        ctx.fillStyle = "#fff";
+        ctx.font = "12px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(t.label, t.x + t.w/2, t.y - 5);
+    });
+
+    // Draw NPCs
+    npcs.forEach(npc => {
+        ctx.fillStyle = "#f1c40f";
+        ctx.beginPath();
+        ctx.arc(npc.x, npc.y, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.font = "12px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(npc.name, npc.x, npc.y - 15);
+    });
+
+    // Draw Enemies
+    enemies.forEach(e => {
+        ctx.fillStyle = e.color;
+        ctx.beginPath();
+        ctx.arc(e.x, e.y, e.size, 0, Math.PI * 2);
+        ctx.fill();
+
+        // HP bar for Bosses / Enemies
+        ctx.fillStyle = "#333";
+        ctx.fillRect(e.x - e.size, e.y - e.size - 8, e.size * 2, 5);
+        ctx.fillStyle = "#e74c3c";
+        ctx.fillRect(e.x - e.size, e.y - e.size - 8, (e.size * 2) * (e.hp / e.maxHp), 5);
+
+        ctx.fillStyle = "#fff";
+        ctx.font = "11px sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillText(e.name, e.x, e.y - e.size - 12);
+    });
+
+    // Draw Player
+    if(p.invincibleTimer % 4 < 2) { // Flashing when hurt
+        ctx.fillStyle = "#f39c12";
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        // Player Direction Indicator
+        ctx.fillStyle = "#fff";
+        ctx.beginPath();
+        ctx.arc(p.x + p.dirX * 12, p.y + p.dirY * 12, 4, 0, Math.PI * 2);
+        ctx.fill();
     }
 
-    renderBattleUI();
-}
-
-// --- エリア・ナビゲーション ---
-function goToLocation(loc) {
-    gameState.location = loc;
-    updateStatus();
-    clearLog();
-
-    switch(loc) {
-        case 'luminous':
-            log("【ルミナス村】\n精霊の大樹に見守られた静かな故郷。");
-            setButtons([
-                { text: "長老の家に行く", action: talkToGrandpa },
-                { text: "宿屋で休む (無料)", action: () => { gameState.hp = gameState.maxHp; updateStatus(); log("HPが全回復した！"); } },
-                { text: "ワールドマップへ", action: showWorldMap }
-            ]);
-            break;
-
-        case 'bazaar':
-            log("【商業都市グランバザール】\n世界最大の交易都市。多くの冒険者で賑わっている。");
-            setButtons([
-                { text: "武器屋に行く", action: shopBazaar },
-                { text: "冒険者ギルド（賞金首討伐）", action: guildQuest },
-                { text: "ワールドマップへ", action: showWorldMap }
-            ]);
-            break;
-
-        case 'volcano':
-            log("【鉱山街ボルカノ】\n火山の麓に広がるドワーフの街。炎将ガルダの脅威に晒されている。");
-            setButtons([
-                { text: "鍛冶場（武器強化）", action: shopVolcano },
-                { text: "炎将ガルダに挑む（火の宝珠）", action: bossGaruda, disabled: gameState.orbs.fire },
-                { text: "ワールドマップへ", action: showWorldMap }
-            ]);
-            break;
-
-        case 'silphy':
-            log("【樹上の村シルフィ】\n巨木の上に佇むエルフの里。幻影妃セレーネの呪いで混沌としている。");
-            setButtons([
-                { text: "幻影妃セレーネに挑む（風の宝珠）", action: bossSelene, disabled: gameState.orbs.wind },
-                { text: "ワールドマップへ", action: showWorldMap }
-            ]);
-            break;
-
-        case 'aquaris':
-            log("【港町アクアリス】\n海風が心地よい港町。沖合には嵐竜ヴァルザーが潜む。");
-            let buttons = [
-                { text: "嵐竜ヴァルザーに挑む（水の宝珠）", action: bossValzar, disabled: gameState.orbs.water || !gameState.flags.hasShip },
-                { text: "ワールドマップへ", action: showWorldMap }
-            ];
-            if (!gameState.flags.hasShip) {
-                buttons.unshift({ text: "船を入手する (150G)", action: buyShip });
-            }
-            setButtons(buttons);
-            break;
-
-        case 'granval':
-            log("【聖地グラン・ヴァル】\n雪深い山頂の聖域。冥将ゼノスが静寂を侵食している。");
-            setButtons([
-                { text: "冥将ゼノスに挑む（影の宝珠）", action: bossZenos, disabled: gameState.orbs.shadow },
-                { text: "ワールドマップへ", action: showWorldMap }
-            ]);
-            break;
-
-        case 'demonCastle':
-            const orbCount = Object.values(gameState.orbs).filter(Boolean).length;
-            if (orbCount < 4) {
-                log("【魔王城の門】\n強力な結界が張られており進めない！\n世界各地にある「4つの宝珠」を集める必要がある。");
-                setButtons([{ text: "ワールドマップへ戻る", action: showWorldMap }]);
-            } else {
-                log("【魔王城】\n4つの宝珠が共鳴し、結界が消滅した！\n奥で魔王が待っている…！");
-                setButtons([
-                    { text: "魔王に挑む", action: bossDemonKing },
-                    { text: "ワールドマップへ戻る", action: showWorldMap }
-                ]);
-            }
-            break;
+    // Draw Attack Swing
+    if(p.isAttacking && p.attackRect) {
+        ctx.fillStyle = "rgba(241, 196, 15, 0.6)";
+        ctx.fillRect(p.attackRect.x, p.attackRect.y, p.attackRect.w, p.attackRect.h);
     }
-}
 
-function showWorldMap() {
-    clearLog();
-    log("【ワールドマップ】\n行きたい目的地を選択してください。");
-    setButtons([
-        { text: "中央：ルミナス村", action: () => goToLocation('luminous') },
-        { text: "中央：グランバザール", action: () => goToLocation('bazaar') },
-        { text: "西部：ボルカノ", action: () => goToLocation('volcano') },
-        { text: "東部：シルフィ", action: () => goToLocation('silphy') },
-        { text: "南部：アクアリス", action: () => goToLocation('aquaris') },
-        { text: "北部：グラン・ヴァル", action: () => goToLocation('granval') },
-        { text: "決戦：魔王城", action: () => goToLocation('demonCastle') }
-    ]);
-}
-
-// --- イベント＆ショップ ---
-function talkToGrandpa() {
-    clearLog();
-    if (!gameState.flags.metGrandpa) {
-        log("長老「勇者よ、魔王を倒すには4つの『四精霊の宝珠』が必要じゃ。世界各地を巡り、力を示してくるのだ。」");
-        gameState.flags.metGrandpa = true;
-    } else {
-        log("長老「旅の調子はどうじゃ？ 無理はせんようにな。」");
-    }
-    goToLocation('luminous');
-}
-
-function shopBazaar() {
-    clearLog();
-    log("武器屋「いらっしゃい！ 良い装備そろってるよ。」");
-    setButtons([
-        {
-            text: "鋼鉄の剣を購入 (100G / 攻撃力+15)",
-            action: () => {
-                if (gameState.gold >= 100) {
-                    gameState.gold -= 100;
-                    gameState.atk = 30;
-                    gameState.weapon = "鋼鉄の剣";
-                    log("「鋼鉄の剣」を購入し、装備した！");
-                    updateStatus();
-                } else {
-                    log("ゴールドが足りない！");
-                }
-            }
-        },
-        { text: "戻る", action: () => goToLocation('bazaar') }
-    ]);
-}
-
-function guildQuest() {
-    clearLog();
-    if (gameState.flags.guildQuestDone) {
-        log("ギルド職員「現在依頼はありません。また来てください！」");
-        goToLocation('bazaar');
-        return;
-    }
-    log("ギルド職員「街の近くに出没する『盗賊頭』を倒してください！」");
-    startBattle("盗賊頭", 60, 8, () => {
-        log("ギルド報酬として 100G を獲得した！");
-        gameState.gold += 100;
-        gameState.flags.guildQuestDone = true;
-        updateStatus();
-        setButtons([{ text: "街に戻る", action: () => goToLocation('bazaar') }]);
+    // Draw Particles
+    particles.forEach(pt => {
+        ctx.fillStyle = pt.color;
+        ctx.fillRect(pt.x, pt.y, 3, 3);
     });
 }
 
-function shopVolcano() {
-    clearLog();
-    log("伝説の鍛冶師「ワシの腕にかかれば、オリハルコンの剣だって作れるぞ！」");
-    setButtons([
-        {
-            text: "オリハルコンの剣を購入 (300G / 攻撃力+35)",
-            action: () => {
-                if (gameState.gold >= 300) {
-                    gameState.gold -= 300;
-                    gameState.atk = 50;
-                    gameState.weapon = "オリハルコンの剣";
-                    log("「オリハルコンの剣」を手に入れた！");
-                    updateStatus();
-                } else {
-                    log("ゴールドが足りない！");
-                }
-            }
-        },
-        { text: "戻る", action: () => goToLocation('volcano') }
-    ]);
+function gameLoop() {
+    update();
+    draw();
+    requestAnimationFrame(gameLoop);
 }
 
-function buyShip() {
-    clearLog();
-    if (gameState.gold >= 150) {
-        gameState.gold -= 150;
-        gameState.flags.hasShip = true;
-        updateStatus();
-        log("頑丈な航海船を手に入れた！これで沖合の離島へ渡れる！");
-    } else {
-        log("船を買うためのゴールドが足りない！");
-    }
-    goToLocation('aquaris');
-}
+// Start Game
+loadMap("world", 400, 240);
+gameLoop();
 
-// --- ボス戦 ---
-function bossGaruda() {
-    startBattle("炎将ガルダ", 120, 15, () => {
-        log("【火の宝珠】を手に入れた！ 報酬として150G獲得！");
-        gameState.orbs.fire = true;
-        gameState.gold += 150;
-        updateStatus();
-        setButtons([{ text: "ボルカノへ戻る", action: () => goToLocation('volcano') }]);
-    });
-}
-
-function bossSelene() {
-    startBattle("幻影妃セレーネ", 140, 18, () => {
-        log("【風の宝珠】を手に入れた！ 報酬として150G獲得！");
-        gameState.orbs.wind = true;
-        gameState.gold += 150;
-        updateStatus();
-        setButtons([{ text: "シルフィへ戻る", action: () => goToLocation('silphy') }]);
-    });
-}
-
-function bossValzar() {
-    startBattle("嵐竜ヴァルザー", 180, 22, () => {
-        log("【水の宝珠】を手に入れた！ 報酬として200G獲得！");
-        gameState.orbs.water = true;
-        gameState.gold += 200;
-        updateStatus();
-        setButtons([{ text: "アクアリスへ戻る", action: () => goToLocation('aquaris') }]);
-    });
-}
-
-function bossZenos() {
-    startBattle("冥将ゼノス", 220, 25, () => {
-        log("【影の宝珠】を手に入れた！ 報酬として250G獲得！");
-        gameState.orbs.shadow = true;
-        gameState.gold += 250;
-        updateStatus();
-        setButtons([{ text: "グラン・ヴァルへ戻る", action: () => goToLocation('granval') }]);
-    });
-}
-
-function bossDemonKing() {
-    startBattle("魔王", 350, 32, () => {
-        clearLog();
-        log("【エンディング】\n激闘の末、あなたは魔王を撃破した！\n世界に平和が戻り、あなたの名は伝説の勇者として語り継がれるだろう…！\n\n～ FIN ～");
-        setButtons([{
-            text: "タイトルへ戻る",
-            action: () => location.reload()
-        }]);
-    });
-}
-
-// 初期起動
-goToLocation('luminous');
 </script>
-
 </body>
-</html>
