@@ -110,7 +110,7 @@
         </div>
     </div>
     <div id="controls-hint">
-        移動: <span class="key">WASD</span> / <span class="key">↑←↓→</span> | 話す・調べる: <span class="key">SPACE</span> | 戦闘コマンド: <span class="key">1</span> <span class="key">2</span> <span class="key">3</span> <span class="key">4</span>
+        移動: <span class="key">WASD</span> / <span class="key">↑←↓→</span> | 話す・調べる: <span class="key">SPACE</span> | 戦闘コマンド: <span class="key">1</span> <span class="key">2</span> <span class="key">3</span> <span class="key">4</span> | セーブ: <span class="key">S</span> | ロード: <span class="key">L</span>
     </div>
 </div>
 
@@ -126,13 +126,13 @@ const WORLD_WIDTH = 3600;
 const WORLD_HEIGHT = 2800;
 const camera = { x: 0, y: 0, width: 800, height: 480 };
 
-// 武器データベース
+// 武器データベース（価格と攻撃力を高難易度向けに再調整）
 const WEAPONS = {
     sword: { id: "sword", name: "鋼のロングソード", type: "斬撃", atk: 25, hitRate: 0.95, price: 0 },
-    dagger: { id: "dagger", name: "影縫いの短剣", type: "刺突", atk: 35, hitRate: 0.98, critRate: 0.35, price: 200 },
-    axe: { id: "axe", name: "ギガントアックス", type: "打撃", atk: 65, hitRate: 0.75, price: 450 },
-    holy: { id: "holy", name: "聖光のメイス", type: "聖なる光", atk: 85, hitRate: 0.9, price: 800 },
-    excalibur: { id: "excalibur", name: "伝説の聖剣ルミナス", type: "神聖", atk: 130, hitRate: 0.99, critRate: 0.25, price: 1500 }
+    dagger: { id: "dagger", name: "影縫いの短剣", type: "刺突", atk: 50, hitRate: 0.98, critRate: 0.35, price: 800 },
+    axe: { id: "axe", name: "ギガントアックス", type: "打撃", atk: 100, hitRate: 0.75, price: 2500 },
+    holy: { id: "holy", name: "聖光のメイス", type: "聖なる光", atk: 160, hitRate: 0.9, price: 6000 },
+    excalibur: { id: "excalibur", name: "伝説の聖剣ルミナス", type: "神聖", atk: 260, hitRate: 0.99, critRate: 0.30, price: 15000 }
 };
 
 // プレイヤーデータ
@@ -189,54 +189,54 @@ function isInsideStructure(x, y, margin = 40) {
 
 // NPC配置
 const npcs = [
-    { x: 1800, y: 2120, name: "国王ルミナス", type: "king", text: "勇者よ！世界の四方に散る四天王の城へ向かえ！まずは各地の村で備えるのだ！" },
-    { x: 1550, y: 2250, name: "王国武器屋", type: "merchant", role: "SHOP_WEAPON", text: "強力な武器を整えて旅立て！" },
-    { x: 2050, y: 2250, name: "王国道具屋", type: "merchant", role: "SHOP_ITEM", text: "回復の薬（50G）を持っていきなさい。" },
-    { x: 1550, y: 2400, name: "王立宿屋", type: "inn", role: "INN", text: "1泊 40G で体力を全回復します。" },
+    { x: 1800, y: 2120, name: "国王ルミナス", type: "king", text: "勇者よ！四天王と魔王の軍勢は恐るべき強さだ。装備と覚悟を整えて挑むのだ！" },
+    { x: 1550, y: 2250, name: "王国武器屋", type: "merchant", role: "SHOP_WEAPON", text: "強敵に対抗するため高品質な武器を揃えているぞ！" },
+    { x: 2050, y: 2250, name: "王国道具屋", type: "merchant", role: "SHOP_ITEM", text: "回復の薬（80G）を持っていきなさい。" },
+    { x: 1550, y: 2400, name: "王立宿屋", type: "inn", role: "INN", text: "1泊 50G で体力を全回復します。" },
 
     { x: 420, y: 730, name: "ゼフィリアの長老", type: "townsfolk", text: "北の疾風の魔城には3人の側近護衛がおる。彼らを全員倒さねば四天王ゼファーの居室へは入れん！" },
-    { x: 300, y: 800, name: "風の村宿屋", type: "inn", role: "INN", text: "1泊 40G で休んでいきな。" },
+    { x: 300, y: 800, name: "風の村宿屋", type: "inn", role: "INN", text: "1泊 50G で休んでいきな。" },
 
     { x: 3120, y: 730, name: "アクアリスの少女", type: "townsfolk", text: "氷華の城の幹部近衛兵3人はとても強いです...レベルを上げてから挑んでね！" },
-    { x: 3200, y: 800, name: "氷の村宿屋", type: "inn", role: "INN", text: "1泊 40G で暖まっていきなさい。" },
+    { x: 3200, y: 800, name: "氷の村宿屋", type: "inn", role: "INN", text: "1泊 50G で暖まっていきなさい。" },
 
     { x: 420, y: 1730, name: "ヴァルカンの戦士", type: "townsfolk", text: "業火の城へ乗り込むなら強力な武器が必須だ！周辺のモンスターで修行するのだ！" },
-    { x: 300, y: 1800, name: "炎の村宿屋", type: "inn", role: "INN", text: "1泊 40G だ。しっかり休めよ！" },
+    { x: 300, y: 1800, name: "炎の村宿屋", type: "inn", role: "INN", text: "1泊 50G だ。しっかり休めよ！" },
 
-    { x: 3120, y: 1730, name: "ボルテックスの賢者", type: "townsfolk", text: "雷鳴の執行官3人を滅ぼせば雷鳴王ボルトが現れる。四天王全員を倒せば魔王城の結界が消え去るぞ！" },
-    { x: 3200, y: 1800, name: "雷の村宿屋", type: "inn", role: "INN", text: "1泊 40G で疲れを癒やしましょう。" }
+    { x: 3120, y: 1730, name: "ボルテックスの賢者", type: "townsfolk", text: "四天王を滅ぼせば魔王城の結界が消える。魔王の力は圧倒的だ、聖剣なしでは勝ち目はないぞ！" },
+    { x: 3200, y: 1800, name: "雷の村宿屋", type: "inn", role: "INN", text: "1泊 50G で疲れを癒やしましょう。" }
 ];
 
-// エネミーデータの初期化関数
+// エネミーデータの初期化関数（ステータス大幅強化）
 let enemies = [];
 function initEnemies() {
     enemies = [
         // 🌪️ 疾風の魔城
-        { x: 425, y: 240, name: "【疾風将】ゼファー", hp: 380, maxHp: 380, atk: 34, exp: 280, gold: 350, type: "cadre_wind", size: 36, isCadre: "wind" },
-        { x: 330, y: 350, name: "疾風の護衛・アスカ", hp: 130, maxHp: 130, atk: 20, exp: 60, gold: 80, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
-        { x: 425, y: 380, name: "疾風の護衛・フウガ", hp: 130, maxHp: 130, atk: 20, exp: 60, gold: 80, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
-        { x: 520, y: 350, name: "疾風の護衛・ハヤテ", hp: 140, maxHp: 140, atk: 22, exp: 70, gold: 90, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
+        { x: 425, y: 240, name: "【疾風将】ゼファー", hp: 1200, maxHp: 1200, atk: 70, exp: 600, gold: 1200, type: "cadre_wind", size: 36, isCadre: "wind" },
+        { x: 330, y: 350, name: "疾風の護衛・アスカ", hp: 450, maxHp: 450, atk: 45, exp: 180, gold: 300, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
+        { x: 425, y: 380, name: "疾風の護衛・フウガ", hp: 450, maxHp: 450, atk: 45, exp: 180, gold: 300, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
+        { x: 520, y: 350, name: "疾風の護衛・ハヤテ", hp: 500, maxHp: 500, atk: 50, exp: 220, gold: 350, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
 
         // ❄️ 氷華の魔城
-        { x: 3125, y: 240, name: "【氷華后】アクアリア", hp: 550, maxHp: 550, atk: 45, exp: 450, gold: 500, type: "cadre_water", size: 36, isCadre: "water" },
-        { x: 3030, y: 350, name: "氷華の近衛・シグラ", hp: 180, maxHp: 180, atk: 28, exp: 110, gold: 120, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
-        { x: 3125, y: 380, name: "氷華の近衛・ヒョウガ", hp: 180, maxHp: 180, atk: 28, exp: 110, gold: 120, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
-        { x: 3220, y: 350, name: "氷華の近衛・フロスト", hp: 200, maxHp: 200, atk: 30, exp: 130, gold: 140, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
+        { x: 3125, y: 240, name: "【氷華后】アクアリア", hp: 2200, maxHp: 2200, atk: 110, exp: 1200, gold: 2200, type: "cadre_water", size: 36, isCadre: "water" },
+        { x: 3030, y: 350, name: "氷華の近衛・シグラ", hp: 700, maxHp: 700, atk: 75, exp: 350, gold: 500, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
+        { x: 3125, y: 380, name: "氷華の近衛・ヒョウガ", hp: 700, maxHp: 700, atk: 75, exp: 350, gold: 500, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
+        { x: 3220, y: 350, name: "氷華の近衛・フロスト", hp: 800, maxHp: 800, atk: 85, exp: 420, gold: 600, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
 
         // 🔥 業火の魔城
-        { x: 425, y: 1240, name: "【業火帝】ブレイズ", hp: 750, maxHp: 750, atk: 58, exp: 700, gold: 700, type: "cadre_fire", size: 38, isCadre: "fire" },
-        { x: 330, y: 1350, name: "業火の突撃兵・プロメノ", hp: 250, maxHp: 250, atk: 38, exp: 170, gold: 180, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
-        { x: 425, y: 1380, name: "業火の突撃兵・イグニス", hp: 250, maxHp: 250, atk: 38, exp: 170, gold: 180, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
-        { x: 520, y: 1350, name: "業火の突撃兵・ヘルフレア", hp: 280, maxHp: 280, atk: 42, exp: 200, gold: 210, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
+        { x: 425, y: 1240, name: "【業火帝】ブレイズ", hp: 3500, maxHp: 3500, atk: 150, exp: 2000, gold: 3500, type: "cadre_fire", size: 38, isCadre: "fire" },
+        { x: 330, y: 1350, name: "業火の突撃兵・プロメノ", hp: 1100, maxHp: 1100, atk: 105, exp: 600, gold: 800, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
+        { x: 425, y: 1380, name: "業火の突撃兵・イグニス", hp: 1100, maxHp: 1100, atk: 105, exp: 600, gold: 800, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
+        { x: 520, y: 1350, name: "業火の突撃兵・ヘルフレア", hp: 1300, maxHp: 1300, atk: 120, exp: 750, gold: 1000, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
 
         // ⚡ 雷鳴の魔城
-        { x: 3125, y: 1240, name: "【雷鳴王】ボルト", hp: 1000, maxHp: 1000, atk: 72, exp: 1000, gold: 1000, type: "cadre_thunder", size: 40, isCadre: "thunder" },
-        { x: 3030, y: 1350, name: "雷鳴の執行官・ライガ", hp: 340, maxHp: 340, atk: 48, exp: 250, gold: 260, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
-        { x: 3125, y: 1380, name: "雷鳴の執行官・ヴォルト", hp: 340, maxHp: 340, atk: 48, exp: 250, gold: 260, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
-        { x: 3220, y: 1350, name: "雷鳴の執行官・サンダー", hp: 380, maxHp: 380, atk: 52, exp: 290, gold: 300, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
+        { x: 3125, y: 1240, name: "【雷鳴王】ボルト", hp: 5000, maxHp: 5000, atk: 190, exp: 3200, gold: 5000, type: "cadre_thunder", size: 40, isCadre: "thunder" },
+        { x: 3030, y: 1350, name: "雷鳴の執行官・ライガ", hp: 1600, maxHp: 1600, atk: 135, exp: 1000, gold: 1200, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
+        { x: 3125, y: 1380, name: "雷鳴の執行官・ヴォルト", hp: 1600, maxHp: 1600, atk: 135, exp: 1000, gold: 1200, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
+        { x: 3220, y: 1350, name: "雷鳴の執行官・サンダー", hp: 1800, maxHp: 1800, atk: 150, exp: 1200, gold: 1500, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
 
-        // 👑 終焉の魔王城
-        { x: 1800, y: 320, name: "【終焉の魔王】ルシフェル", hp: 1600, maxHp: 1600, atk: 90, exp: 0, gold: 0, type: "lucifel", size: 50, isBoss: true }
+        // 👑 終焉の魔王城（聖剣ルミナス+ガード・魔法使用でギリギリ勝てるバランス）
+        { x: 1800, y: 320, name: "【終焉の魔王】ルシフェル", hp: 8500, maxHp: 8500, atk: 255, exp: 0, gold: 0, type: "lucifel", size: 50, isBoss: true }
     ];
 
     spawnWildMonsters();
@@ -244,11 +244,11 @@ function initEnemies() {
 
 function spawnWildMonsters() {
     const mobTypes = [
-        { name: "スライム", hp: 40, atk: 8, exp: 18, gold: 25, type: "slime", zone: "center" },
-        { name: "野良ゴブリン", hp: 80, atk: 16, exp: 35, gold: 45, type: "goblin", zone: "wind" },
-        { name: "荒野のオーク", hp: 140, atk: 26, exp: 70, gold: 80, type: "oak", zone: "water" },
-        { name: "炎の魔物", hp: 210, atk: 38, exp: 120, gold: 140, type: "golem", zone: "fire" },
-        { name: "雷光の巨人", hp: 310, atk: 50, exp: 190, gold: 220, type: "golem", zone: "thunder" }
+        { name: "スライム", hp: 80, atk: 18, exp: 35, gold: 50, type: "slime", zone: "center" },
+        { name: "野良ゴブリン", hp: 220, atk: 38, exp: 80, gold: 120, type: "goblin", zone: "wind" },
+        { name: "荒野のオーク", hp: 480, atk: 65, exp: 180, gold: 260, type: "oak", zone: "water" },
+        { name: "炎の魔物", hp: 900, atk: 110, exp: 400, gold: 550, type: "golem", zone: "fire" },
+        { name: "雷光の巨人", hp: 1500, atk: 155, exp: 800, gold: 1100, type: "golem", zone: "thunder" }
     ];
 
     mobTypes.forEach(mob => {
@@ -285,6 +285,46 @@ function spawnWildMonsters() {
 initPlayer();
 initEnemies();
 
+// --- 💾 セーブ＆ロード機能 ---
+function saveGame() {
+    if (gameState !== "FIELD") {
+        alert("⚠️ フィールド移動中のみセーブ可能です。");
+        return;
+    }
+    const saveData = {
+        p: p,
+        defeatedCadres: p.cadreDefeated
+    };
+    localStorage.setItem("soragon_quest_save", JSON.stringify(saveData));
+    alert("💾 ゲームデータをセーブしました！");
+}
+
+function loadGame() {
+    const saveData = localStorage.getItem("soragon_quest_save");
+    if (!saveData) {
+        alert("⚠️ セーブデータが見つかりません。");
+        return;
+    }
+    try {
+        const data = JSON.parse(saveData);
+        p = data.p;
+        p.cadreDefeated = data.defeatedCadres || p.cadreDefeated;
+        
+        // 敵の撃破状態を反映して初期化
+        initEnemies();
+        enemies = enemies.filter(e => {
+            if (e.isCadre && p.cadreDefeated[e.isCadre]) return false;
+            return true;
+        });
+
+        gameState = "FIELD";
+        updateUI();
+        alert("📂 セーブデータをロードしました！");
+    } catch (err) {
+        alert("⚠️ セーブデータの読み込みに失敗しました。");
+    }
+}
+
 const keys = {};
 
 window.addEventListener('keydown', e => {
@@ -295,8 +335,10 @@ window.addEventListener('keydown', e => {
         gameState = "FIELD";
     } else if (gameState === "ENDING" && (e.code === 'Space' || e.code === 'Enter')) {
         gameState = "TITLE";
-    } else if (gameState === "FIELD" && e.code === 'Space') {
-        checkFieldInteraction();
+    } else if (gameState === "FIELD") {
+        if (e.code === 'Space') checkFieldInteraction();
+        else if (e.code === 'KeyS') saveGame();
+        else if (e.code === 'KeyL') loadGame();
     } else if (gameState === "DIALOGUE" && e.code === 'Space') {
         gameState = "FIELD";
     } else if (gameState === "SHOP") {
@@ -390,7 +432,7 @@ function checkFieldInteraction() {
             if (enemy.isCadre) {
                 const subLeft = enemies.filter(e => e.isSubCadre && e.parentCadre === enemy.isCadre).length;
                 if (subLeft > 0) {
-                    alert(`⚠️ 城内の配下（残り ${subLeft} 人）を討ち倒さなければ幹部【${enemy.name}】の部屋に入ることはできない！`);
+                    alert(`⚠️ 城内の配下（残り ${subLeft} 人）を討ち倒さなければ幹部【${enemy.name}】の居室へは入れない！`);
                     return;
                 }
             }
@@ -429,10 +471,10 @@ function handleShopInput(code) {
     } else if (currentShopType === "ITEM") {
         shopSelection = 0;
         if (code === 'Space') {
-            if (p.gold >= 50) {
-                p.gold -= 50;
+            if (p.gold >= 80) {
+                p.gold -= 80;
                 p.potions++;
-                alert("🧪 回復の薬を購入しました！ (HP 80回復)");
+                alert("🧪 回復の薬を購入しました！ (HP 180回復)");
             } else {
                 alert("⚠️ ゴールドが足りません！");
             }
@@ -443,8 +485,8 @@ function handleShopInput(code) {
 }
 
 function executeInn() {
-    if (p.gold >= 40) {
-        p.gold -= 40;
+    if (p.gold >= 50) {
+        p.gold -= 50;
         p.hp = p.maxHp;
         p.mp = p.maxMp;
         alert("🏨 宿屋で旅の疲れを完全に癒やした！ HPとMPが全回復！");
@@ -456,6 +498,9 @@ function executeInn() {
 }
 
 function startBattle(enemy) {
+    // 🔥 再戦時は必ず敵のHPを全回復させて対戦を開始する
+    enemy.hp = enemy.maxHp;
+
     currentTarget = enemy;
     gameState = "BATTLE";
     battleMenuMode = "MAIN";
@@ -498,7 +543,7 @@ function executePlayerAttack() {
     if (!hit) {
         battleLog = `⚔️ 攻撃を繰り出したが ${currentTarget.name} にかわされた！`;
     } else {
-        let dmg = p.baseAtk + w.atk + Math.floor(Math.random() * 10);
+        let dmg = p.baseAtk + w.atk + Math.floor(Math.random() * 15);
         if (isCrit) dmg = Math.floor(dmg * 1.8);
         currentTarget.hp -= dmg;
         battleLog = `💥 ${w.name} の一撃！ ${currentTarget.name} に ${dmg} ダメージ！${isCrit ? " (会心の一撃！)" : ""}`;
@@ -516,16 +561,16 @@ function executePlayerGuard() {
 
 function executeSkill(type) {
     if (type === "heal") {
-        if (p.mp < 12) { battleLog = "⚠️ MPが足りない！"; return; }
-        p.mp -= 12;
-        p.hp = Math.min(p.maxHp, p.hp + 75);
+        if (p.mp < 15) { battleLog = "⚠️ MPが足りない！"; return; }
+        p.mp -= 15;
+        p.hp = Math.min(p.maxHp, p.hp + 160);
         activeEffect = "HEAL";
         setTimeout(() => { activeEffect = null; }, 600);
-        battleLog = "✨ 聖なる祈り！ HPが 75 回復！";
+        battleLog = "✨ 聖なる祈り！ HPが 160 回復！";
     } else if (type === "fire") {
-        if (p.mp < 18) { battleLog = "⚠️ MPが足りない！"; return; }
-        p.mp -= 18;
-        const dmg = 110;
+        if (p.mp < 24) { battleLog = "⚠️ MPが足りない！"; return; }
+        p.mp -= 24;
+        const dmg = 280;
         currentTarget.hp -= dmg;
         activeEffect = "FIRE";
         setTimeout(() => { activeEffect = null; }, 600);
@@ -533,10 +578,10 @@ function executeSkill(type) {
     } else if (type === "item") {
         if (p.potions <= 0) { battleLog = "⚠️ 回復の薬がない！"; return; }
         p.potions--;
-        p.hp = Math.min(p.maxHp, p.hp + 80);
+        p.hp = Math.min(p.maxHp, p.hp + 180);
         activeEffect = "HEAL";
         setTimeout(() => { activeEffect = null; }, 600);
-        battleLog = "🧪 回復の薬を使用！ HPが 80 回復！";
+        battleLog = "🧪 回復の薬を使用！ HPが 180 回復！";
     }
     battleMenuMode = "MAIN";
     updateUI();
@@ -546,18 +591,18 @@ function executeSkill(type) {
 
 function enemyTurn() {
     if (currentTarget.hp <= 0) return;
-    let dmg = currentTarget.atk + Math.floor(Math.random() * 8);
-    if (p.isGuarding) dmg = Math.floor(dmg * 0.5);
+    let dmg = currentTarget.atk + Math.floor(Math.random() * 15);
+    if (p.isGuarding) dmg = Math.floor(dmg * 0.45);
 
     p.hp -= dmg;
     p.isGuarding = false;
     activeEffect = "ENEMY_ATTACK";
     setTimeout(() => { activeEffect = null; }, 600);
 
-    battleLog = `💥 ${currentTarget.name} の攻撃！ 勇者は ${dmg} ダメージを受けた！`;
+    battleLog = `💥 ${currentTarget.name} の苛烈な撃破攻撃！ 勇者は ${dmg} ダメージを受けた！`;
 
     if (p.hp <= 0) {
-        alert("💀 勇者は倒れてしまった… 王国ルミナスで復活します。");
+        alert("💀 勇者は力尽きてしまった… 王国ルミナスで復活します。");
         p.hp = p.maxHp;
         p.mp = p.maxMp;
         gameState = "FIELD";
@@ -570,7 +615,7 @@ function checkBattleEnd() {
     if (currentTarget.hp <= 0) {
         p.gold += currentTarget.gold;
         p.exp += currentTarget.exp;
-        battleLog = `🎉 ${currentTarget.name} を討伐！ (+${currentTarget.exp} EXP, +${currentTarget.gold}G)`;
+        battleLog = `🎉 ${currentTarget.name} を撃破！ (+${currentTarget.exp} EXP, +${currentTarget.gold}G)`;
 
         if (currentTarget.isCadre) {
             p.cadreDefeated[currentTarget.isCadre] = true;
@@ -582,11 +627,11 @@ function checkBattleEnd() {
 
         if (p.exp >= p.expToNext) {
             p.lv++;
-            p.maxHp += 30; p.hp = p.maxHp;
-            p.maxMp += 12; p.mp = p.maxMp;
-            p.baseAtk += 8;
-            p.expToNext = Math.floor(p.expToNext * 1.5);
-            alert(`🌟 LEVEL UP! LV ${p.lv} に上がった！ (最大HP/MP・攻撃力が上昇)`);
+            p.maxHp += 35; p.hp = p.maxHp;
+            p.maxMp += 15; p.mp = p.maxMp;
+            p.baseAtk += 10;
+            p.expToNext = Math.floor(p.expToNext * 1.55);
+            alert(`🌟 LEVEL UP! LV ${p.lv} に上がった！ (最大HP/MP・基礎攻撃力が上昇)`);
         }
 
         const isBossDefeated = currentTarget.isBoss;
@@ -594,7 +639,7 @@ function checkBattleEnd() {
 
         setTimeout(() => {
             if (isBossDefeated) {
-                alert("🎊 終焉の魔王ルシフェルを打ち倒し、世界に平和を取り戻した！");
+                alert("🎊 絶望の末に終焉の魔王ルシフェルを打ち倒し、世界に平和を取り戻した！");
                 endingScrollY = 0;
                 gameState = "ENDING";
             } else {
@@ -691,7 +736,7 @@ function update() {
 }
 
 // ==========================================
-// 🎨 描画処理（グラフィック＆顔の精細化）
+// 🎨 描画処理
 // ==========================================
 
 function drawTitleView() {
@@ -700,14 +745,12 @@ function drawTitleView() {
     ctx.save();
     ctx.textAlign = "center";
 
-    // 豪華な背景グラデーション効果
     const grad = ctx.createRadialGradient(400, 240, 50, 400, 240, 400);
     grad.addColorStop(0, "rgba(30, 58, 138, 0.5)");
     grad.addColorStop(1, "rgba(2, 6, 23, 1)");
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // タイトルロゴ
     ctx.fillStyle = "#fbbf24";
     ctx.font = "bold 44px sans-serif";
     ctx.shadowColor = "#f59e0b";
@@ -719,7 +762,6 @@ function drawTitleView() {
     ctx.font = "bold 18px sans-serif";
     ctx.fillText("〜 結界に守られし村々と四天王の影 〜", canvas.width / 2, 220);
 
-    // 点滅するスタートボタンメッセージ
     if (Math.floor(Date.now() / 500) % 2 === 0) {
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 20px sans-serif";
@@ -728,7 +770,7 @@ function drawTitleView() {
 
     ctx.fillStyle = "#94a3b8";
     ctx.font = "13px sans-serif";
-    ctx.fillText("【操作】 移動: WASD / 矢印  |  調べる・決定: SPACE  |  戦闘コマンド: 1, 2, 3, 4", canvas.width / 2, 420);
+    ctx.fillText("【操作】 移動: WASD / 矢印  |  決定: SPACE  |  セーブ: S  |  ロード: L", canvas.width / 2, 420);
 
     ctx.restore();
 }
@@ -1084,9 +1126,9 @@ function drawShopView() {
         ctx.fillStyle = "#1e293b"; ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 2;
         ctx.fillRect(100, 150, 600, 80); ctx.strokeRect(100, 150, 600, 80);
         ctx.fillStyle = "#fff"; ctx.font = "bold 18px sans-serif"; ctx.textAlign = "left";
-        ctx.fillText("🧪 回復の薬 (HP 80回復)", 130, 195);
+        ctx.fillText("🧪 回復の薬 (HP 180回復)", 130, 195);
         ctx.fillStyle = "#fbbf24"; ctx.textAlign = "right";
-        ctx.fillText("50 G", 670, 195);
+        ctx.fillText("80 G", 670, 195);
     }
 }
 
@@ -1160,8 +1202,8 @@ function drawBattleView() {
         drawMenuButton(`3. ${WEAPONS[inv[2]] ? WEAPONS[inv[2]].name : '-'}`, 60, 410, 320, 40, "#38bdf8");
         drawMenuButton(`4. ${WEAPONS[inv[3]] ? WEAPONS[inv[3]].name : '-'}`, 420, 410, 320, 40, "#38bdf8");
     } else if (battleMenuMode === "SKILL_SELECT") {
-        drawMenuButton("1. 回復祈り (12 MP)", 60, 360, 320, 40, "#a855f7");
-        drawMenuButton("2. 爆炎呪文 (18 MP)", 420, 360, 320, 40, "#a855f7");
+        drawMenuButton("1. 回復祈り (15 MP)", 60, 360, 320, 40, "#a855f7");
+        drawMenuButton("2. 爆炎呪文 (24 MP)", 420, 360, 320, 40, "#a855f7");
         drawMenuButton(`3. 回復の薬 (${p.potions}個)`, 60, 410, 320, 40, "#4ade80");
     }
 }
