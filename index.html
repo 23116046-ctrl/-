@@ -180,7 +180,7 @@ const structures = [
 ];
 
 // 座標が城や村（構造物）の敷地内（余白含む）にあるか判定する関数
-function isInsideStructure(x, y, margin = 20) {
+function isInsideStructure(x, y, margin = 40) {
     return structures.some(st => 
         x >= (st.x - margin) && 
         x <= (st.x + st.w + margin) && 
@@ -244,7 +244,7 @@ let enemies = [
     { x: 1800, y: 320, name: "【終焉の魔王】ルシフェル", hp: 1600, maxHp: 1600, atk: 90, exp: 0, gold: 0, type: "lucifel", size: 50, isBoss: true }
 ];
 
-// エリアごとの野良モンスター自動生成（村や城の内部には絶対に湧かない）
+// エリアごとの野良モンスター自動生成（村や城の敷地外に厳格生成）
 function spawnWildMonsters() {
     const mobTypes = [
         { name: "スライム", hp: 40, atk: 8, exp: 18, gold: 25, type: "slime", zone: "center" },
@@ -260,8 +260,8 @@ function spawnWildMonsters() {
             let validPos = false;
             let attempts = 0;
 
-            // 建築物（村・城）の敷地外になるまでスポーン位置を厳密に厳選
-            while (!validPos && attempts < 100) {
+            // 村・城から十分に離れた位置（マージン80px）でのみスポーンを許可
+            while (!validPos && attempts < 200) {
                 attempts++;
                 if (mob.zone === "center") { rx = 1000 + Math.random() * 1600; ry = 1800 + Math.random() * 800; }
                 else if (mob.zone === "wind") { rx = 200 + Math.random() * 1200; ry = 200 + Math.random() * 1000; }
@@ -269,17 +269,20 @@ function spawnWildMonsters() {
                 else if (mob.zone === "fire") { rx = 200 + Math.random() * 1200; ry = 1200 + Math.random() * 1000; }
                 else if (mob.zone === "thunder") { rx = 2200 + Math.random() * 1200; ry = 1200 + Math.random() * 1000; }
 
-                if (!isInsideStructure(rx, ry, 60)) {
+                if (!isInsideStructure(rx, ry, 80)) {
                     validPos = true;
                 }
             }
 
-            enemies.push({
-                x: rx, y: ry, vx: 0, vy: 0, moveTimer: 0,
-                name: mob.name, hp: mob.hp, maxHp: mob.hp,
-                atk: mob.atk, exp: mob.exp, gold: mob.gold,
-                type: mob.type, size: 22, isWandering: true
-            });
+            // 有効な位置が確保できた場合のみ追加
+            if (validPos) {
+                enemies.push({
+                    x: rx, y: ry, vx: 0, vy: 0, moveTimer: 0,
+                    name: mob.name, hp: mob.hp, maxHp: mob.hp,
+                    atk: mob.atk, exp: mob.exp, gold: mob.gold,
+                    type: mob.type, size: 22, isWandering: true
+                });
+            }
         }
     });
 }
@@ -619,7 +622,7 @@ function update() {
         }
     }
 
-    // 2. 野良モンスターAI（村や城の境界を越えて侵入できないように制御）
+    // 2. 野良モンスターAI（村や城の境界を越えて絶対侵入させない厳格制御）
     enemies.forEach(e => {
         if (e.isWandering) {
             e.moveTimer--;
@@ -634,15 +637,31 @@ function update() {
             let nextX = e.x + e.vx;
             let nextY = e.y + e.vy;
 
-            // 建築物（村・城）の領域に近づいたら跳ね返り、侵入を防ぐ
-            if (isInsideStructure(nextX, nextY, 25)) {
-                e.vx = -e.vx;
-                e.vy = -e.vy;
-                e.moveTimer = 30;
-            } else {
+            // X軸方向の侵入防止判定
+            if (!isInsideStructure(nextX, e.y, 40)) {
                 e.x = nextX;
-                e.y = nextY;
+            } else {
+                e.vx = -e.vx;
             }
+
+            // Y軸方向の侵入防止判定
+            if (!isInsideStructure(e.x, nextY, 40)) {
+                e.y = nextY;
+            } else {
+                e.vy = -e.vy;
+            }
+
+            // 万が一建築物（村・城）領域に入り込みそうになった場合の強力な外側弾き出し処理
+            structures.forEach(st => {
+                const margin = 45;
+                if (e.x >= st.x - margin && e.x <= st.x + st.w + margin &&
+                    e.y >= st.y - margin && e.y <= st.y + st.h + margin) {
+                    if (e.x < st.x + st.w / 2) e.x = st.x - margin - 10;
+                    else e.x = st.x + st.w + margin + 10;
+                    e.vx = -e.vx;
+                    e.vy = -e.vy;
+                }
+            });
 
             e.x = Math.max(100, Math.min(WORLD_WIDTH - 100, e.x));
             e.y = Math.max(100, Math.min(WORLD_HEIGHT - 100, e.y));
