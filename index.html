@@ -91,7 +91,7 @@
 <body>
 
 <div id="game-wrapper">
-    <h1>⚔️ ルミナスの勇者 - 四天王の城と開かれし村々 ⚔️</h1>
+    <h1>⚔️ ルミナスの勇者 - 結界に守られし村々 ⚔️</h1>
     <div id="canvas-container">
         <canvas id="gameCanvas" width="800" height="480"></canvas>
     </div>
@@ -155,7 +155,6 @@ let battleAnimTimer = 0;
 let activeEffect = null;
 
 // --- 🏰 構造物（城・村）と入口ゲートの定義 ---
-// 各エリアには外壁があり、指定の「ゲート（南側中央などの穴）」からしか入れない
 const structures = [
     // 中央南：始まりの王国ルミナス
     { id: "luminous", name: "始まりの王国ルミナス", x: 1400, y: 2000, w: 800, h: 500, gateX: 1740, gateW: 120, color: "#334155", wallColor: "#64748b", isCastle: true },
@@ -179,6 +178,16 @@ const structures = [
     // 中央北：魔王城
     { id: "demon_castle", name: "終焉の魔王城", x: 1550, y: 150, w: 500, h: 400, gateX: 1750, gateW: 100, color: "#2e1065", wallColor: "#a855f7", isDemonCastle: true }
 ];
+
+// 座標が城や村（構造物）の敷地内（余白含む）にあるか判定する関数
+function isInsideStructure(x, y, margin = 20) {
+    return structures.some(st => 
+        x >= (st.x - margin) && 
+        x <= (st.x + st.w + margin) && 
+        y >= (st.y - margin) && 
+        y <= (st.y + st.h + margin)
+    );
+}
 
 // NPC配置
 const npcs = [
@@ -235,7 +244,7 @@ let enemies = [
     { x: 1800, y: 320, name: "【終焉の魔王】ルシフェル", hp: 1600, maxHp: 1600, atk: 90, exp: 0, gold: 0, type: "lucifel", size: 50, isBoss: true }
 ];
 
-// エリアごとの野良モンスター自動生成
+// エリアごとの野良モンスター自動生成（村や城の内部には絶対に湧かない）
 function spawnWildMonsters() {
     const mobTypes = [
         { name: "スライム", hp: 40, atk: 8, exp: 18, gold: 25, type: "slime", zone: "center" },
@@ -248,11 +257,22 @@ function spawnWildMonsters() {
     mobTypes.forEach(mob => {
         for (let i = 0; i < 8; i++) {
             let rx = 0, ry = 0;
-            if (mob.zone === "center") { rx = 1000 + Math.random() * 1600; ry = 1800 + Math.random() * 800; }
-            else if (mob.zone === "wind") { rx = 200 + Math.random() * 1200; ry = 200 + Math.random() * 1000; }
-            else if (mob.zone === "water") { rx = 2200 + Math.random() * 1200; ry = 200 + Math.random() * 1000; }
-            else if (mob.zone === "fire") { rx = 200 + Math.random() * 1200; ry = 1200 + Math.random() * 1000; }
-            else if (mob.zone === "thunder") { rx = 2200 + Math.random() * 1200; ry = 1200 + Math.random() * 1000; }
+            let validPos = false;
+            let attempts = 0;
+
+            // 建築物（村・城）の敷地外になるまでスポーン位置を厳密に厳選
+            while (!validPos && attempts < 100) {
+                attempts++;
+                if (mob.zone === "center") { rx = 1000 + Math.random() * 1600; ry = 1800 + Math.random() * 800; }
+                else if (mob.zone === "wind") { rx = 200 + Math.random() * 1200; ry = 200 + Math.random() * 1000; }
+                else if (mob.zone === "water") { rx = 2200 + Math.random() * 1200; ry = 200 + Math.random() * 1000; }
+                else if (mob.zone === "fire") { rx = 200 + Math.random() * 1200; ry = 1200 + Math.random() * 1000; }
+                else if (mob.zone === "thunder") { rx = 2200 + Math.random() * 1200; ry = 1200 + Math.random() * 1000; }
+
+                if (!isInsideStructure(rx, ry, 60)) {
+                    validPos = true;
+                }
+            }
 
             enemies.push({
                 x: rx, y: ry, vx: 0, vy: 0, moveTimer: 0,
@@ -304,14 +324,12 @@ function updateUI() {
     else if (gameState === "BATTLE") { stateEl.innerText = "ターン制バトル"; stateEl.style.color = "#f87171"; }
 }
 
-// --- 🧱 壁・入口判定（外壁からは入れず、入口ゲートからのみ通過可能）---
+// --- 🧱 壁・入口判定（プレイヤー用）---
 function checkCollisionWithWalls(nextX, nextY) {
     const wallThick = 14;
 
     for (let st of structures) {
-        // 魔王城の結界判定
         if (st.isDemonCastle && getDefeatedCadreCount() < 4) {
-            // 魔王城のゲート付近
             if (nextX >= st.gateX - 20 && nextX <= st.gateX + st.gateW + 20 &&
                 nextY >= st.y + st.h - 30 && nextY <= st.y + st.h + 20) {
                 alert(`🛡️ 強大な紅蓮結界が阻んでいる！\n四天王（残り ${4 - getDefeatedCadreCount()} 人）をすべて討伐するまで魔王城の門は開かない！`);
@@ -319,21 +337,15 @@ function checkCollisionWithWalls(nextX, nextY) {
             }
         }
 
-        // 1. 北壁 (Top Wall)
         if (circleRectOverlap(nextX, nextY, p.size, st.x, st.y, st.w, wallThick)) return true;
-        // 2. 西壁 (Left Wall)
         if (circleRectOverlap(nextX, nextY, p.size, st.x, st.y, wallThick, st.h)) return true;
-        // 3. 東壁 (Right Wall)
         if (circleRectOverlap(nextX, nextY, p.size, st.x + st.w - wallThick, st.y, wallThick, st.h)) return true;
 
-        // 4. 南壁（入口ゲート部分だけ穴が開いている）
         const leftSouthW = st.gateX - st.x;
         const rightSouthX = st.gateX + st.gateW;
         const rightSouthW = (st.x + st.w) - rightSouthX;
 
-        // 南壁・左側
         if (leftSouthW > 0 && circleRectOverlap(nextX, nextY, p.size, st.x, st.y + st.h - wallThick, leftSouthW, wallThick)) return true;
-        // 南壁・右側
         if (rightSouthW > 0 && circleRectOverlap(nextX, nextY, p.size, rightSouthX, st.y + st.h - wallThick, rightSouthW, wallThick)) return true;
     }
     return false;
@@ -586,7 +598,7 @@ function update() {
     battleAnimTimer += 0.05;
     if (gameState !== "FIELD") return;
 
-    // 1. 移動移動 & 壁判定
+    // 1. プレイヤー移動 & 壁判定
     let dx = 0, dy = 0;
     if (keys['KeyW'] || keys['ArrowUp']) dy -= 1;
     if (keys['KeyS'] || keys['ArrowDown']) dy += 1;
@@ -599,7 +611,6 @@ function update() {
         let nextX = p.x + p.dirX * p.speed;
         let nextY = p.y + p.dirY * p.speed;
 
-        // 壁判定の適用（入口以外は通行不可）
         if (!checkCollisionWithWalls(nextX, p.y)) {
             p.x = Math.max(20, Math.min(WORLD_WIDTH - 20, nextX));
         }
@@ -608,7 +619,7 @@ function update() {
         }
     }
 
-    // 2. モンスターAI
+    // 2. 野良モンスターAI（村や城の境界を越えて侵入できないように制御）
     enemies.forEach(e => {
         if (e.isWandering) {
             e.moveTimer--;
@@ -619,7 +630,20 @@ function update() {
                 e.vy = Math.sin(angle) * spd;
                 e.moveTimer = 40 + Math.floor(Math.random() * 80);
             }
-            e.x += e.vx; e.y += e.vy;
+
+            let nextX = e.x + e.vx;
+            let nextY = e.y + e.vy;
+
+            // 建築物（村・城）の領域に近づいたら跳ね返り、侵入を防ぐ
+            if (isInsideStructure(nextX, nextY, 25)) {
+                e.vx = -e.vx;
+                e.vy = -e.vy;
+                e.moveTimer = 30;
+            } else {
+                e.x = nextX;
+                e.y = nextY;
+            }
+
             e.x = Math.max(100, Math.min(WORLD_WIDTH - 100, e.x));
             e.y = Math.max(100, Math.min(WORLD_HEIGHT - 100, e.y));
         }
@@ -644,7 +668,7 @@ function update() {
 }
 
 // ==========================================
-// 🎨 DRAWING FUNCTIONS
+// 🎨 描画処理
 // ==========================================
 
 function drawDetailedPlayer(ctx, scale = 1) {
@@ -661,12 +685,10 @@ function drawDetailedPlayer(ctx, scale = 1) {
     ctx.fillStyle = "#3b82f6"; ctx.beginPath(); ctx.arc(-11, 3, 6, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "#94a3b8"; ctx.fillRect(9, -10, 3, 18);
 
-    // 顔
     ctx.fillStyle = "#ffedd5"; ctx.beginPath(); ctx.arc(0, -16, 10, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = "#0f172a"; ctx.beginPath(); ctx.arc(-3, -17, 1.5, 0, Math.PI * 2); ctx.arc(3, -17, 1.5, 0, Math.PI * 2); ctx.fill();
     ctx.strokeStyle = "#b91c1c"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(0, -13, 3, 0, Math.PI); ctx.stroke();
 
-    // 髪
     ctx.fillStyle = "#f59e0b";
     ctx.beginPath();
     ctx.moveTo(-10, -18); ctx.lineTo(-6, -26); ctx.lineTo(-1, -20);
@@ -677,22 +699,16 @@ function drawDetailedPlayer(ctx, scale = 1) {
 
 function drawStructures() {
     structures.forEach(st => {
-        // 敷地内部
         ctx.fillStyle = st.color;
         ctx.fillRect(st.x, st.y, st.w, st.h);
 
-        // 外壁（厚み14px）
         const wallThick = 14;
         ctx.fillStyle = st.wallColor;
 
-        // 北壁
         ctx.fillRect(st.x, st.y, st.w, wallThick);
-        // 西壁
         ctx.fillRect(st.x, st.y, wallThick, st.h);
-        // 東壁
         ctx.fillRect(st.x + st.w - wallThick, st.y, wallThick, st.h);
 
-        // 南壁（ゲート部分のみ空ける）
         const leftSouthW = st.gateX - st.x;
         const rightSouthX = st.gateX + st.gateW;
         const rightSouthW = (st.x + st.w) - rightSouthX;
@@ -700,16 +716,13 @@ function drawStructures() {
         ctx.fillRect(st.x, st.y + st.h - wallThick, leftSouthW, wallThick);
         ctx.fillRect(rightSouthX, st.y + st.h - wallThick, rightSouthW, wallThick);
 
-        // 入口ゲート表示
         ctx.fillStyle = "#fbbf24";
         ctx.fillRect(st.gateX - 2, st.y + st.h - wallThick - 2, 4, wallThick + 4);
         ctx.fillRect(st.gateX + st.gateW - 2, st.y + st.h - wallThick - 2, 4, wallThick + 4);
 
-        // 名称看板
         ctx.fillStyle = "#fff"; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "center";
         ctx.fillText(`【 ${st.name} 】`, st.x + st.w / 2, st.y - 8);
 
-        // 魔王城結界描画
         if (st.isDemonCastle && getDefeatedCadreCount() < 4) {
             ctx.fillStyle = "rgba(244, 63, 94, 0.4)";
             ctx.fillRect(st.gateX, st.y + st.h - wallThick, st.gateW, wallThick);
@@ -723,30 +736,23 @@ function drawField() {
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
 
-    // 地形ベース
     ctx.fillStyle = "#15803d"; ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
 
-    // 地域ごとの色分けフィールド
-    ctx.fillStyle = "rgba(6, 182, 212, 0.15)"; ctx.fillRect(2000, 0, 1600, 1000); // 氷
-    ctx.fillStyle = "rgba(239, 68, 68, 0.15)"; ctx.fillRect(0, 1000, 1600, 1000); // 炎
-    ctx.fillStyle = "rgba(234, 179, 8, 0.15)"; ctx.fillRect(2000, 1000, 1600, 1000); // 雷
+    ctx.fillStyle = "rgba(6, 182, 212, 0.15)"; ctx.fillRect(2000, 0, 1600, 1000);
+    ctx.fillStyle = "rgba(239, 68, 68, 0.15)"; ctx.fillRect(0, 1000, 1600, 1000);
+    ctx.fillStyle = "rgba(234, 179, 8, 0.15)"; ctx.fillRect(2000, 1000, 1600, 1000);
 
-    // 街道
     ctx.strokeStyle = "#d97706"; ctx.lineWidth = 28; ctx.lineCap = "round";
     ctx.beginPath();
-    // 王国から魔王城へ
     ctx.moveTo(1800, 2000); ctx.lineTo(1800, 550);
-    // 各村/城への分岐路
     ctx.moveTo(1800, 800); ctx.lineTo(400, 800); ctx.lineTo(400, 470);
     ctx.moveTo(1800, 800); ctx.lineTo(3100, 800); ctx.lineTo(3100, 470);
     ctx.moveTo(1800, 1800); ctx.lineTo(400, 1800); ctx.lineTo(400, 1470);
     ctx.moveTo(1800, 1800); ctx.lineTo(3100, 1800); ctx.lineTo(3100, 1470);
     ctx.stroke();
 
-    // 城・村の描画
     drawStructures();
 
-    // NPCs
     npcs.forEach(npc => {
         ctx.save(); ctx.translate(npc.x, npc.y);
         drawNPC(ctx, npc.type);
@@ -755,7 +761,6 @@ function drawField() {
         ctx.fillText(npc.name, npc.x, npc.y - 20);
     });
 
-    // エネミー
     enemies.forEach(e => {
         ctx.save(); ctx.translate(e.x, e.y);
         drawCadre(ctx, e.type, e.isBoss ? 1.0 : e.isSubCadre ? 0.75 : 0.85);
@@ -764,7 +769,6 @@ function drawField() {
         ctx.fillText(e.name, e.x, e.y - (e.size || 20) - 6);
     });
 
-    // 勇者
     ctx.save(); ctx.translate(p.x, p.y);
     drawDetailedPlayer(ctx, 0.95);
     ctx.restore();
@@ -849,7 +853,6 @@ function drawBattleView() {
     ctx.fillStyle = "#14532d";
     ctx.beginPath(); ctx.moveTo(80, 170); ctx.lineTo(720, 170); ctx.lineTo(800, 340); ctx.lineTo(0, 340); ctx.closePath(); ctx.fill();
 
-    // 敵
     ctx.save();
     const enemyX = 560 + Math.sin(battleAnimTimer * 2) * 5;
     const enemyY = 175;
@@ -857,7 +860,6 @@ function drawBattleView() {
     drawCadre(ctx, currentTarget.type, currentTarget.isBoss ? 1.8 : currentTarget.isSubCadre ? 1.1 : 1.3);
     ctx.restore();
 
-    // 勇者
     ctx.save();
     const heroX = 220, heroY = 270;
     ctx.translate(heroX, heroY);
@@ -875,7 +877,6 @@ function drawBattleView() {
         ctx.beginPath(); ctx.arc(heroX, heroY - 20, 55, 0, Math.PI * 2); ctx.fill();
     }
 
-    // HP表示
     ctx.fillStyle = "rgba(15, 23, 42, 0.85)"; ctx.fillRect(40, 20, 280, 60);
     ctx.fillStyle = "#fff"; ctx.font = "bold 15px sans-serif"; ctx.textAlign = "left";
     ctx.fillText(currentTarget.name, 55, 42);
@@ -890,11 +891,9 @@ function drawBattleView() {
     ctx.fillStyle = "#38bdf8"; ctx.font = "bold 12px sans-serif";
     ctx.fillText(`HP: ${p.hp}/${p.maxHp}  MP: ${p.mp}/${p.maxMp}`, 495, 266);
 
-    // ログ
     ctx.fillStyle = "rgba(15, 23, 42, 0.95)"; ctx.fillRect(30, 285, 740, 45);
     ctx.fillStyle = "#38bdf8"; ctx.font = "14px sans-serif"; ctx.fillText(battleLog, 45, 312);
 
-    // コマンド
     ctx.fillStyle = "rgba(15, 23, 42, 0.95)"; ctx.fillRect(30, 340, 740, 125);
     if (battleMenuMode === "MAIN") {
         drawMenuButton("1. 武器攻撃", 60, 360, 320, 40, "#38bdf8");
