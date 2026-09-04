@@ -91,7 +91,7 @@
 <body>
 
 <div id="game-wrapper">
-    <h1>⚔️ ルミナスの勇者 - グランドワールド・クロニクル ⚔️</h1>
+    <h1>⚔️ ルミナスの勇者 - 四天王の城と開かれし村々 ⚔️</h1>
     <div id="canvas-container">
         <canvas id="gameCanvas" width="800" height="480"></canvas>
     </div>
@@ -110,7 +110,7 @@
         </div>
     </div>
     <div id="controls-hint">
-        移動: <span class="key">WASD</span> / <span class="key">↑←↓→</span> | 調べる・決定: <span class="key">SPACE</span> | 戦闘コマンド: <span class="key">1</span> <span class="key">2</span> <span class="key">3</span> <span class="key">4</span>
+        移動: <span class="key">WASD</span> / <span class="key">↑←↓→</span> | 話す・調べる: <span class="key">SPACE</span> | 戦闘コマンド: <span class="key">1</span> <span class="key">2</span> <span class="key">3</span> <span class="key">4</span>
     </div>
 </div>
 
@@ -120,23 +120,23 @@ const ctx = canvas.getContext('2d');
 
 let gameState = "FIELD"; // "FIELD", "DIALOGUE", "BATTLE", "SHOP", "INN"
 
-// --- 超巨大マップ設定 (3600 x 2800) ---
+// --- マップ設定 (3600 x 2800) ---
 const WORLD_WIDTH = 3600;
 const WORLD_HEIGHT = 2800;
 const camera = { x: 0, y: 0, width: 800, height: 480 };
 
 // 武器データベース
 const WEAPONS = {
-    sword: { id: "sword", name: "鋼のロングソード", type: "斬撃", atk: 25, hitRate: 0.95, price: 0, desc: "標準的な万能剣" },
-    dagger: { id: "dagger", name: "影縫いの短剣", type: "刺突", atk: 22, hitRate: 0.98, critRate: 0.35, price: 180, desc: "会心が出やすい軽刃" },
-    axe: { id: "axe", name: "ギガントアックス", type: "打撃", atk: 55, hitRate: 0.75, price: 380, desc: "一撃重視の大斧" },
-    holy: { id: "holy", name: "聖光のメイス", type: "聖なる光", atk: 45, hitRate: 0.9, price: 550, desc: "魔族特効を持つ聖槌" },
-    excalibur: { id: "excalibur", name: "伝説の聖剣ルミナス", type: "神聖", atk: 90, hitRate: 0.99, critRate: 0.25, price: 1300, desc: "魔王を退ける最高峰の剣" }
+    sword: { id: "sword", name: "鋼のロングソード", type: "斬撃", atk: 25, hitRate: 0.95, price: 0 },
+    dagger: { id: "dagger", name: "影縫いの短剣", type: "刺突", atk: 35, hitRate: 0.98, critRate: 0.35, price: 200 },
+    axe: { id: "axe", name: "ギガントアックス", type: "打撃", atk: 65, hitRate: 0.75, price: 450 },
+    holy: { id: "holy", name: "聖光のメイス", type: "聖なる光", atk: 85, hitRate: 0.9, price: 800 },
+    excalibur: { id: "excalibur", name: "伝説の聖剣ルミナス", type: "神聖", atk: 130, hitRate: 0.99, critRate: 0.25, price: 1500 }
 };
 
 // プレイヤーデータ
 const p = {
-    x: 750, y: 2150, size: 20, speed: 4.5, dirX: 0, dirY: 1,
+    x: 1800, y: 2350, size: 16, speed: 4.5, dirX: 0, dirY: 1,
     hp: 120, maxHp: 120, mp: 50, maxMp: 50,
     baseAtk: 15, gold: 250, lv: 1, exp: 0, expToNext: 50,
     potions: 3,
@@ -149,98 +149,121 @@ const p = {
 let currentTarget = null;
 let currentShopType = null;
 let shopSelection = 0;
-let battleLog = "戦闘開始！コマンドを選択してください。";
+let battleLog = "";
 let battleMenuMode = "MAIN";
 let battleAnimTimer = 0;
 let activeEffect = null;
 
-// --- 大大規模な「始まりの王国ルミナス」とNPCの配置 ---
+// --- 🏰 構造物（城・村）と入口ゲートの定義 ---
+// 各エリアには外壁があり、指定の「ゲート（南側中央などの穴）」からしか入れない
+const structures = [
+    // 中央南：始まりの王国ルミナス
+    { id: "luminous", name: "始まりの王国ルミナス", x: 1400, y: 2000, w: 800, h: 500, gateX: 1740, gateW: 120, color: "#334155", wallColor: "#64748b", isCastle: true },
+
+    // 北西：風のエリア
+    { id: "wind_village", name: "風の村ゼフィリア", x: 250, y: 650, w: 350, h: 280, gateX: 400, gateW: 80, color: "#14532d", wallColor: "#22c55e" },
+    { id: "wind_castle", name: "疾風の魔城", x: 250, y: 150, w: 350, h: 320, gateX: 400, gateW: 80, color: "#064e3b", wallColor: "#10b981", isCastle: true },
+
+    // 北東：氷のエリア
+    { id: "water_village", name: "氷の村アクアリス", x: 2950, y: 650, w: 350, h: 280, gateX: 3100, gateW: 80, color: "#0c4a6e", wallColor: "#38bdf8" },
+    { id: "water_castle", name: "氷華の魔城", x: 2950, y: 150, w: 350, h: 320, gateX: 3100, gateW: 80, color: "#164e63", wallColor: "#06b6d4", isCastle: true },
+
+    // 南西：炎のエリア
+    { id: "fire_village", name: "炎の村ヴァルカン", x: 250, y: 1650, w: 350, h: 280, gateX: 400, gateW: 80, color: "#7f1d1d", wallColor: "#ef4444" },
+    { id: "fire_castle", name: "業火の魔城", x: 250, y: 1150, w: 350, h: 320, gateX: 400, gateW: 80, color: "#450a0a", wallColor: "#dc2626", isCastle: true },
+
+    // 南東：雷のエリア
+    { id: "thunder_village", name: "雷の村ボルテックス", x: 2950, y: 1650, w: 350, h: 280, gateX: 3100, gateW: 80, color: "#713f12", wallColor: "#eab308" },
+    { id: "thunder_castle", name: "雷鳴の魔城", x: 2950, y: 1150, w: 350, h: 320, gateX: 3100, gateW: 80, color: "#422006", wallColor: "#ca8a04", isCastle: true },
+
+    // 中央北：魔王城
+    { id: "demon_castle", name: "終焉の魔王城", x: 1550, y: 150, w: 500, h: 400, gateX: 1750, gateW: 100, color: "#2e1065", wallColor: "#a855f7", isDemonCastle: true }
+];
+
+// NPC配置
 const npcs = [
-    { x: 750, y: 1920, name: "国王ルミナス", type: "king", text: "勇者よ！各拠点の3人の配下を倒して幹部を引きずり出し、四天王を滅ぼさねば魔王城の結界は解かれぬぞ！" },
-    { x: 500, y: 2050, name: "武器屋の鍛冶職人", type: "merchant", role: "SHOP_WEAPON", text: "強力な武器を買いそろえて旅立つといい！" },
-    { x: 950, y: 2050, name: "道具屋の店主", type: "merchant", role: "SHOP_ITEM", text: "回復の薬（50G）を売っているよ。" },
-    { x: 500, y: 2300, name: "王立宿屋", type: "inn", role: "INN", text: "1泊 40G で完全に休息できます。" },
-    { x: 750, y: 2100, name: "王国騎士長", type: "knight", text: "幹部たちの周りには強固な配下が3人配備されている。配下を倒さねば幹部本体には挑めないぞ！" },
-    { x: 600, y: 2180, name: "町娘マリア", type: "townsfolk", text: "広場の噴水は私たちの憩いの場所なんです。" },
-    { x: 900, y: 2220, name: "学者ルーク", type: "scholar", text: "魔王城は結界で護られており、四天王を全滅させるまで侵入すら不可能です。" }
+    // 始まりの王国
+    { x: 1800, y: 2120, name: "国王ルミナス", type: "king", text: "勇者よ！世界の四方に散る四天王の城へ向かえ！まずは各地の村で備えるのだ！" },
+    { x: 1550, y: 2250, name: "王国武器屋", type: "merchant", role: "SHOP_WEAPON", text: "強力な武器を整えて旅立て！" },
+    { x: 2050, y: 2250, name: "王国道具屋", type: "merchant", role: "SHOP_ITEM", text: "回復の薬（50G）を持っていきなさい。" },
+    { x: 1550, y: 2400, name: "王立宿屋", type: "inn", role: "INN", text: "1泊 40G で体力を全回復します。" },
+
+    // 風の村ゼフィリア
+    { x: 420, y: 730, name: "ゼフィリアの長老", type: "townsfolk", text: "北の疾風の魔城には3人の側近護衛がおる。彼らを全員倒さねば四天王ゼファーの居室へは入れん！" },
+    { x: 300, y: 800, name: "風の村宿屋", type: "inn", role: "INN", text: "1泊 40G で休んでいきな。" },
+
+    // 氷の村アクアリス
+    { x: 3120, y: 730, name: "アクアリスの少女", type: "townsfolk", text: "氷華の城の幹部近衛兵3人はとても強いです...レベルを上げてから挑んでね！" },
+    { x: 3200, y: 800, name: "氷の村宿屋", type: "inn", role: "INN", text: "1泊 40G で暖まっていきなさい。" },
+
+    // 炎の村ヴァルカン
+    { x: 420, y: 1730, name: "ヴァルカンの戦士", type: "townsfolk", text: "業火の城へ乗り込むなら強力な武器が必須だ！周辺のモンスターで修行するのだ！" },
+    { x: 300, y: 1800, name: "炎の村宿屋", type: "inn", role: "INN", text: "1泊 40G だ。しっかり休めよ！" },
+
+    // 雷の村ボルテックス
+    { x: 3120, y: 1730, name: "ボルテックスの賢者", type: "townsfolk", text: "雷鳴の執行官3人を滅ぼせば雷鳴王ボルトが現れる。四天王全員を倒せば魔王城の結界が消え去るぞ！" },
+    { x: 3200, y: 1800, name: "雷の村宿屋", type: "inn", role: "INN", text: "1泊 40G で疲れを癒やしましょう。" }
 ];
 
-// 敵一覧（四天王 + 幹部の配下3人ずつ + 最終魔王）
+// エネミー（四天王 + 幹部の配下3人ずつ + 魔王）
 let enemies = [
-    // 🌪️ 疾風の四天王 ＆ 配下3人
-    { x: 600, y: 600, name: "【疾風将】ゼファー", hp: 380, maxHp: 380, atk: 34, exp: 280, gold: 350, type: "cadre_wind", size: 36, isCadre: "wind" },
-    { x: 520, y: 550, name: "疾風の護衛・アスカ", hp: 130, maxHp: 130, atk: 20, exp: 60, gold: 80, type: "sub_wind", size: 26, isSubCadre: true, parentCadre: "wind" },
-    { x: 680, y: 550, name: "疾風の護衛・フウガ", hp: 130, maxHp: 130, atk: 20, exp: 60, gold: 80, type: "sub_wind", size: 26, isSubCadre: true, parentCadre: "wind" },
-    { x: 600, y: 690, name: "疾風の護衛・ハヤテ", hp: 140, maxHp: 140, atk: 22, exp: 70, gold: 90, type: "sub_wind", size: 26, isSubCadre: true, parentCadre: "wind" },
+    // 🌪️ 疾風の魔城 (北西)
+    { x: 425, y: 240, name: "【疾風将】ゼファー", hp: 380, maxHp: 380, atk: 34, exp: 280, gold: 350, type: "cadre_wind", size: 36, isCadre: "wind" },
+    { x: 330, y: 350, name: "疾風の護衛・アスカ", hp: 130, maxHp: 130, atk: 20, exp: 60, gold: 80, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
+    { x: 425, y: 380, name: "疾風の護衛・フウガ", hp: 130, maxHp: 130, atk: 20, exp: 60, gold: 80, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
+    { x: 520, y: 350, name: "疾風の護衛・ハヤテ", hp: 140, maxHp: 140, atk: 22, exp: 70, gold: 90, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
 
-    // ❄️ 氷華の四天王 ＆ 配下3人
-    { x: 3000, y: 600, name: "【氷華后】アクアリア", hp: 450, maxHp: 450, atk: 40, exp: 380, gold: 450, type: "cadre_water", size: 36, isCadre: "water" },
-    { x: 2920, y: 550, name: "氷華の近衛・シグラ", hp: 160, maxHp: 160, atk: 25, exp: 90, gold: 110, type: "sub_water", size: 26, isSubCadre: true, parentCadre: "water" },
-    { x: 3080, y: 550, name: "氷華の近衛・ヒョウガ", hp: 160, maxHp: 160, atk: 25, exp: 90, gold: 110, type: "sub_water", size: 26, isSubCadre: true, parentCadre: "water" },
-    { x: 3000, y: 690, name: "氷華の近衛・フロスト", hp: 180, maxHp: 180, atk: 27, exp: 100, gold: 120, type: "sub_water", size: 26, isSubCadre: true, parentCadre: "water" },
+    // ❄️ 氷華の魔城 (北東)
+    { x: 3125, y: 240, name: "【氷華后】アクアリア", hp: 550, maxHp: 550, atk: 45, exp: 450, gold: 500, type: "cadre_water", size: 36, isCadre: "water" },
+    { x: 3030, y: 350, name: "氷華の近衛・シグラ", hp: 180, maxHp: 180, atk: 28, exp: 110, gold: 120, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
+    { x: 3125, y: 380, name: "氷華の近衛・ヒョウガ", hp: 180, maxHp: 180, atk: 28, exp: 110, gold: 120, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
+    { x: 3220, y: 350, name: "氷華の近衛・フロスト", hp: 200, maxHp: 200, atk: 30, exp: 130, gold: 140, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
 
-    // 🔥 業火の四天王 ＆ 配下3人
-    { x: 600, y: 1400, name: "【業火帝】ブレイズ", hp: 550, maxHp: 550, atk: 48, exp: 550, gold: 550, type: "cadre_fire", size: 38, isCadre: "fire" },
-    { x: 520, y: 1350, name: "業火の突撃兵・プロメノ", hp: 210, maxHp: 210, atk: 32, exp: 130, gold: 140, type: "sub_fire", size: 26, isSubCadre: true, parentCadre: "fire" },
-    { x: 680, y: 1350, name: "業火の突撃兵・イグニス", hp: 210, maxHp: 210, atk: 32, exp: 130, gold: 140, type: "sub_fire", size: 26, isSubCadre: true, parentCadre: "fire" },
-    { x: 600, y: 1490, name: "業火の突撃兵・ヘルフレア", hp: 230, maxHp: 230, atk: 35, exp: 150, gold: 160, type: "sub_fire", size: 26, isSubCadre: true, parentCadre: "fire" },
+    // 🔥 業火の魔城 (南西)
+    { x: 425, y: 1240, name: "【業火帝】ブレイズ", hp: 750, maxHp: 750, atk: 58, exp: 700, gold: 700, type: "cadre_fire", size: 38, isCadre: "fire" },
+    { x: 330, y: 1350, name: "業火の突撃兵・プロメノ", hp: 250, maxHp: 250, atk: 38, exp: 170, gold: 180, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
+    { x: 425, y: 1380, name: "業火の突撃兵・イグニス", hp: 250, maxHp: 250, atk: 38, exp: 170, gold: 180, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
+    { x: 520, y: 1350, name: "業火の突撃兵・ヘルフレア", hp: 280, maxHp: 280, atk: 42, exp: 200, gold: 210, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
 
-    // ⚡ 雷鳴の四天王 ＆ 配下3人
-    { x: 3000, y: 1400, name: "【雷鳴王】ボルト", hp: 700, maxHp: 700, atk: 58, exp: 750, gold: 750, type: "cadre_thunder", size: 40, isCadre: "thunder" },
-    { x: 2920, y: 1350, name: "雷鳴の執行官・ライガ", hp: 260, maxHp: 260, atk: 40, exp: 180, gold: 200, type: "sub_thunder", size: 26, isSubCadre: true, parentCadre: "thunder" },
-    { x: 3080, y: 1350, name: "雷鳴の執行官・ヴォルト", hp: 260, maxHp: 260, atk: 40, exp: 180, gold: 200, type: "sub_thunder", size: 26, isSubCadre: true, parentCadre: "thunder" },
-    { x: 3000, y: 1490, name: "雷鳴の執行官・サンダー", hp: 290, maxHp: 290, atk: 43, exp: 210, gold: 230, type: "sub_thunder", size: 26, isSubCadre: true, parentCadre: "thunder" },
+    // ⚡ 雷鳴の魔城 (南東)
+    { x: 3125, y: 1240, name: "【雷鳴王】ボルト", hp: 1000, maxHp: 1000, atk: 72, exp: 1000, gold: 1000, type: "cadre_thunder", size: 40, isCadre: "thunder" },
+    { x: 3030, y: 1350, name: "雷鳴の執行官・ライガ", hp: 340, maxHp: 340, atk: 48, exp: 250, gold: 260, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
+    { x: 3125, y: 1380, name: "雷鳴の執行官・ヴォルト", hp: 340, maxHp: 340, atk: 48, exp: 250, gold: 260, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
+    { x: 3220, y: 1350, name: "雷鳴の執行官・サンダー", hp: 380, maxHp: 380, atk: 52, exp: 290, gold: 300, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
 
-    // 👑 最終魔王
-    { x: 1800, y: 400, name: "【終焉の魔王】ルシフェル", hp: 1300, maxHp: 1300, atk: 75, exp: 0, gold: 0, type: "lucifel", size: 50, isBoss: true }
+    // 👑 終焉の魔王城 (中央北)
+    { x: 1800, y: 320, name: "【終焉の魔王】ルシフェル", hp: 1600, maxHp: 1600, atk: 90, exp: 0, gold: 0, type: "lucifel", size: 50, isBoss: true }
 ];
 
-// 野良雑魚モンスター（移動データを持つ）
-const mobTypes = [
-    { name: "スライム", hp: 40, atk: 8, exp: 15, gold: 20, type: "slime" },
-    { name: "野良ゴブリン", hp: 70, atk: 14, exp: 30, gold: 35, type: "goblin" },
-    { name: "荒野のオーク", hp: 110, atk: 22, exp: 50, gold: 60, type: "oak" },
-    { name: "岩石ゴーレム", hp: 200, atk: 32, exp: 90, gold: 100, type: "golem" }
-];
+// エリアごとの野良モンスター自動生成
+function spawnWildMonsters() {
+    const mobTypes = [
+        { name: "スライム", hp: 40, atk: 8, exp: 18, gold: 25, type: "slime", zone: "center" },
+        { name: "野良ゴブリン", hp: 80, atk: 16, exp: 35, gold: 45, type: "goblin", zone: "wind" },
+        { name: "荒野のオーク", hp: 140, atk: 26, exp: 70, gold: 80, type: "oak", zone: "water" },
+        { name: "炎の魔物", hp: 210, atk: 38, exp: 120, gold: 140, type: "golem", zone: "fire" },
+        { name: "雷光の巨人", hp: 310, atk: 50, exp: 190, gold: 220, type: "golem", zone: "thunder" }
+    ];
 
-for (let i = 0; i < 35; i++) {
-    const mobTemplate = mobTypes[Math.floor(Math.random() * mobTypes.length)];
-    let rx = Math.random() * WORLD_WIDTH;
-    let ry = Math.random() * WORLD_HEIGHT;
-    if (rx > 200 && rx < 1300 && ry > 1700 && ry < 2600) {
-        rx += 1200;
-    }
-    enemies.push({
-        x: rx, y: ry,
-        vx: 0, vy: 0, moveTimer: 0,
-        name: mobTemplate.name,
-        hp: mobTemplate.hp, maxHp: mobTemplate.hp,
-        atk: mobTemplate.atk, exp: mobTemplate.exp, gold: mobTemplate.gold,
-        type: mobTemplate.type, size: 24, isWandering: true
+    mobTypes.forEach(mob => {
+        for (let i = 0; i < 8; i++) {
+            let rx = 0, ry = 0;
+            if (mob.zone === "center") { rx = 1000 + Math.random() * 1600; ry = 1800 + Math.random() * 800; }
+            else if (mob.zone === "wind") { rx = 200 + Math.random() * 1200; ry = 200 + Math.random() * 1000; }
+            else if (mob.zone === "water") { rx = 2200 + Math.random() * 1200; ry = 200 + Math.random() * 1000; }
+            else if (mob.zone === "fire") { rx = 200 + Math.random() * 1200; ry = 1200 + Math.random() * 1000; }
+            else if (mob.zone === "thunder") { rx = 2200 + Math.random() * 1200; ry = 1200 + Math.random() * 1000; }
+
+            enemies.push({
+                x: rx, y: ry, vx: 0, vy: 0, moveTimer: 0,
+                name: mob.name, hp: mob.hp, maxHp: mob.hp,
+                atk: mob.atk, exp: mob.exp, gold: mob.gold,
+                type: mob.type, size: 22, isWandering: true
+            });
+        }
     });
 }
-
-// 環境装飾
-const mapDecorations = [];
-function generateWorldDecorations() {
-    for (let i = 0; i < 600; i++) {
-        mapDecorations.push({
-            type: 'tree',
-            x: Math.random() * WORLD_WIDTH,
-            y: Math.random() * WORLD_HEIGHT,
-            scale: 0.8 + Math.random() * 0.5
-        });
-    }
-    for (let i = 0; i < 700; i++) {
-        mapDecorations.push({
-            type: 'flower',
-            x: Math.random() * WORLD_WIDTH,
-            y: Math.random() * WORLD_HEIGHT,
-            color: ['#f43f5e', '#fbbf24', '#c084fc', '#38bdf8'][Math.floor(Math.random() * 4)]
-        });
-    }
-}
-generateWorldDecorations();
+spawnWildMonsters();
 
 const keys = {};
 
@@ -273,12 +296,55 @@ function updateUI() {
     document.getElementById('ui-potions').innerText = p.potions;
     document.getElementById('ui-cadre').innerText = `${getDefeatedCadreCount()} / 4`;
     document.getElementById('ui-weapon').innerText = WEAPONS[p.equippedWeapon].name;
-    
+
     const stateEl = document.getElementById('ui-state');
     if (gameState === "FIELD") { stateEl.innerText = "フィールド探索"; stateEl.style.color = "#4ade80"; }
     else if (gameState === "DIALOGUE") { stateEl.innerText = "会話中"; stateEl.style.color = "#fbbf24"; }
     else if (gameState === "SHOP") { stateEl.innerText = "ショップ利用中"; stateEl.style.color = "#38bdf8"; }
     else if (gameState === "BATTLE") { stateEl.innerText = "ターン制バトル"; stateEl.style.color = "#f87171"; }
+}
+
+// --- 🧱 壁・入口判定（外壁からは入れず、入口ゲートからのみ通過可能）---
+function checkCollisionWithWalls(nextX, nextY) {
+    const wallThick = 14;
+
+    for (let st of structures) {
+        // 魔王城の結界判定
+        if (st.isDemonCastle && getDefeatedCadreCount() < 4) {
+            // 魔王城のゲート付近
+            if (nextX >= st.gateX - 20 && nextX <= st.gateX + st.gateW + 20 &&
+                nextY >= st.y + st.h - 30 && nextY <= st.y + st.h + 20) {
+                alert(`🛡️ 強大な紅蓮結界が阻んでいる！\n四天王（残り ${4 - getDefeatedCadreCount()} 人）をすべて討伐するまで魔王城の門は開かない！`);
+                return true;
+            }
+        }
+
+        // 1. 北壁 (Top Wall)
+        if (circleRectOverlap(nextX, nextY, p.size, st.x, st.y, st.w, wallThick)) return true;
+        // 2. 西壁 (Left Wall)
+        if (circleRectOverlap(nextX, nextY, p.size, st.x, st.y, wallThick, st.h)) return true;
+        // 3. 東壁 (Right Wall)
+        if (circleRectOverlap(nextX, nextY, p.size, st.x + st.w - wallThick, st.y, wallThick, st.h)) return true;
+
+        // 4. 南壁（入口ゲート部分だけ穴が開いている）
+        const leftSouthW = st.gateX - st.x;
+        const rightSouthX = st.gateX + st.gateW;
+        const rightSouthW = (st.x + st.w) - rightSouthX;
+
+        // 南壁・左側
+        if (leftSouthW > 0 && circleRectOverlap(nextX, nextY, p.size, st.x, st.y + st.h - wallThick, leftSouthW, wallThick)) return true;
+        // 南壁・右側
+        if (rightSouthW > 0 && circleRectOverlap(nextX, nextY, p.size, rightSouthX, st.y + st.h - wallThick, rightSouthW, wallThick)) return true;
+    }
+    return false;
+}
+
+function circleRectOverlap(cx, cy, r, rx, ry, rw, rh) {
+    let closestX = Math.max(rx, Math.min(cx, rx + rw));
+    let closestY = Math.max(ry, Math.min(cy, ry + rh));
+    let distX = cx - closestX;
+    let distY = cy - closestY;
+    return (distX * distX + distY * distY) < (r * r);
 }
 
 function checkFieldInteraction() {
@@ -301,17 +367,15 @@ function checkFieldInteraction() {
 
     for (let enemy of enemies) {
         if (Math.hypot(p.x - enemy.x, p.y - enemy.y) < 45) {
-            // 幹部の挑戦判定（配下3人の撃破チェック）
             if (enemy.isCadre) {
                 const subLeft = enemies.filter(e => e.isSubCadre && e.parentCadre === enemy.isCadre).length;
                 if (subLeft > 0) {
-                    alert(`⚠️ 周囲の配下をあと ${subLeft} 人倒さなければ、幹部【${enemy.name}】に挑むことはできない！`);
+                    alert(`⚠️ 城内の配下（残り ${subLeft} 人）を討ち倒さなければ幹部【${enemy.name}】の部屋に入ることはできない！`);
                     return;
                 }
             }
-            // 魔王判定
             if (enemy.isBoss && getDefeatedCadreCount() < 4) {
-                alert(`🛡️ 強大な結界が阻んでいる！ 四天王（残り ${4 - getDefeatedCadreCount()} 人）を撃破しなければ魔王には挑めない！`);
+                alert(`🛡️ 強大な結界が阻んでいる！ 四天王（残り ${4 - getDefeatedCadreCount()} 人）を討伐しなければ魔王には挑めない！`);
                 return;
             }
             startBattle(enemy);
@@ -323,7 +387,7 @@ function checkFieldInteraction() {
 function handleShopInput(code) {
     if (code === 'KeyW' || code === 'ArrowUp') shopSelection = Math.max(0, shopSelection - 1);
     if (code === 'KeyS' || code === 'ArrowDown') shopSelection++;
-    
+
     if (currentShopType === "WEAPON") {
         const weaponKeys = Object.keys(WEAPONS);
         shopSelection = Math.min(weaponKeys.length - 1, shopSelection);
@@ -337,7 +401,7 @@ function handleShopInput(code) {
                 p.gold -= w.price;
                 p.inventory.push(wKey);
                 p.equippedWeapon = wKey;
-                alert(`🛒 【${w.name}】を購入し、装備しました！`);
+                alert(`🛒 【${w.name}】を購入して装備しました！`);
             } else {
                 alert("⚠️ ゴールドが足りません！");
             }
@@ -363,7 +427,7 @@ function executeInn() {
         p.gold -= 40;
         p.hp = p.maxHp;
         p.mp = p.maxMp;
-        alert("🏨 王立宿屋で旅の疲れを癒やした！ HPとMPが全回復！");
+        alert("🏨 宿屋で旅の疲れを完全に癒やした！ HPとMPが全回復！");
     } else {
         alert("⚠️ ゴールドが足りません！");
     }
@@ -434,14 +498,14 @@ function executeSkill(type) {
     if (type === "heal") {
         if (p.mp < 12) { battleLog = "⚠️ MPが足りない！"; return; }
         p.mp -= 12;
-        p.hp = Math.min(p.maxHp, p.hp + 65);
+        p.hp = Math.min(p.maxHp, p.hp + 75);
         activeEffect = "HEAL";
         setTimeout(() => { activeEffect = null; }, 600);
-        battleLog = "✨ 聖なる祈り！ HPが 65 回復！";
+        battleLog = "✨ 聖なる祈り！ HPが 75 回復！";
     } else if (type === "fire") {
         if (p.mp < 18) { battleLog = "⚠️ MPが足りない！"; return; }
         p.mp -= 18;
-        const dmg = 90;
+        const dmg = 110;
         currentTarget.hp -= dmg;
         activeEffect = "FIRE";
         setTimeout(() => { activeEffect = null; }, 600);
@@ -470,14 +534,14 @@ function enemyTurn() {
     activeEffect = "ENEMY_ATTACK";
     setTimeout(() => { activeEffect = null; }, 600);
 
-    battleLog = `💥 ${currentTarget.name} の苛烈な攻撃！ 勇者は ${dmg} ダメージを受けた！`;
+    battleLog = `💥 ${currentTarget.name} の攻撃！ 勇者は ${dmg} ダメージを受けた！`;
 
     if (p.hp <= 0) {
         alert("💀 勇者は倒れてしまった… 王国ルミナスで復活します。");
         p.hp = p.maxHp;
         p.mp = p.maxMp;
         gameState = "FIELD";
-        p.x = 750; p.y = 2150;
+        p.x = 1800; p.y = 2350;
     }
     updateUI();
 }
@@ -486,29 +550,29 @@ function checkBattleEnd() {
     if (currentTarget.hp <= 0) {
         p.gold += currentTarget.gold;
         p.exp += currentTarget.exp;
-        battleLog = `🎉 ${currentTarget.name} を討ち果した！ (${currentTarget.exp} EXP, +${currentTarget.gold}G)`;
+        battleLog = `🎉 ${currentTarget.name} を討伐！ (+${currentTarget.exp} EXP, +${currentTarget.gold}G)`;
 
         if (currentTarget.isCadre) {
             p.cadreDefeated[currentTarget.isCadre] = true;
             alert(`🏆 四天王【${currentTarget.name}】を撃破！ (残り四天王: ${4 - getDefeatedCadreCount()} 人)`);
         } else if (currentTarget.isSubCadre) {
             const subLeft = enemies.filter(e => e.isSubCadre && e.parentCadre === currentTarget.parentCadre && e !== currentTarget).length;
-            alert(`⚔️ 配下【${currentTarget.name}】を撃破！ (残り配下: ${subLeft} 人)`);
+            alert(`⚔️ 城の配下【${currentTarget.name}】を破った！ (残る配下: ${subLeft} 人)`);
         }
 
         if (p.exp >= p.expToNext) {
             p.lv++;
-            p.maxHp += 25; p.hp = p.maxHp;
-            p.maxMp += 10; p.mp = p.maxMp;
-            p.baseAtk += 6;
-            p.expToNext = Math.floor(p.expToNext * 1.6);
-            alert(`🌟 LEVEL UP! LV ${p.lv} になった！ (最大HP/MP・攻撃力上昇)`);
+            p.maxHp += 30; p.hp = p.maxHp;
+            p.maxMp += 12; p.mp = p.maxMp;
+            p.baseAtk += 8;
+            p.expToNext = Math.floor(p.expToNext * 1.5);
+            alert(`🌟 LEVEL UP! LV ${p.lv} に上がった！ (最大HP/MP・攻撃力が上昇)`);
         }
 
         enemies = enemies.filter(e => e !== currentTarget);
         setTimeout(() => {
             if (currentTarget.isBoss) {
-                alert("🎊 CONGRATULATIONS!\n終焉の魔王ルシフェルを討ち破り、世界に永遠の平和が訪れた！");
+                alert("🎊 CONGRATULATIONS!\n終焉の魔王ルシフェルを倒し、世界に平和が戻った！");
             }
             gameState = "FIELD";
             updateUI();
@@ -522,7 +586,7 @@ function update() {
     battleAnimTimer += 0.05;
     if (gameState !== "FIELD") return;
 
-    // 1. プレイヤー移動処理
+    // 1. 移動移動 & 壁判定
     let dx = 0, dy = 0;
     if (keys['KeyW'] || keys['ArrowUp']) dy -= 1;
     if (keys['KeyS'] || keys['ArrowDown']) dy += 1;
@@ -535,22 +599,16 @@ function update() {
         let nextX = p.x + p.dirX * p.speed;
         let nextY = p.y + p.dirY * p.speed;
 
-        // ★【魔王城の進入制限処理】★
-        // 四天王4人未撃破の段階では魔王城のエリア (x: 1620~1980, y: 180~580) へ進入不可
-        if (getDefeatedCadreCount() < 4) {
-            if (nextX > 1620 && nextX < 1980 && nextY > 180 && nextY < 580) {
-                alert(`🛡️ 強大な紅蓮結界が阻んでいる！\n四天王（残り ${4 - getDefeatedCadreCount()} 人）をすべて討伐するまで魔王城へ侵入することはできない！`);
-                // ノックバック処理
-                nextX = p.x;
-                nextY = p.y + 15;
-            }
+        // 壁判定の適用（入口以外は通行不可）
+        if (!checkCollisionWithWalls(nextX, p.y)) {
+            p.x = Math.max(20, Math.min(WORLD_WIDTH - 20, nextX));
         }
-
-        p.x = Math.max(20, Math.min(WORLD_WIDTH - 20, nextX));
-        p.y = Math.max(20, Math.min(WORLD_HEIGHT - 20, nextY));
+        if (!checkCollisionWithWalls(p.x, nextY)) {
+            p.y = Math.max(20, Math.min(WORLD_HEIGHT - 20, nextY));
+        }
     }
 
-    // 2. 野良雑魚モンスターのランダム移動AI & 衝突判定
+    // 2. モンスターAI
     enemies.forEach(e => {
         if (e.isWandering) {
             e.moveTimer--;
@@ -561,20 +619,18 @@ function update() {
                 e.vy = Math.sin(angle) * spd;
                 e.moveTimer = 40 + Math.floor(Math.random() * 80);
             }
-            e.x += e.vx;
-            e.y += e.vy;
-
+            e.x += e.vx; e.y += e.vy;
             e.x = Math.max(100, Math.min(WORLD_WIDTH - 100, e.x));
             e.y = Math.max(100, Math.min(WORLD_HEIGHT - 100, e.y));
         }
 
-        // プレイヤーとの接敵判定
+        // 接敵判定
         if (Math.hypot(p.x - e.x, p.y - e.y) < p.size + e.size) {
             if (e.isCadre) {
                 const subLeft = enemies.filter(sub => sub.isSubCadre && sub.parentCadre === e.isCadre).length;
                 if (subLeft > 0) {
-                    alert(`⚠️ 配下が残り ${subLeft} 人残っている！ まずは周囲の配下を倒さねば幹部【${e.name}】には挑めない！`);
-                    p.y += 10;
+                    alert(`⚠️ 配下が残り ${subLeft} 人いる！ 配下を全滅させねば幹部【${e.name}】に挑むことはできない！`);
+                    p.y += 12;
                     return;
                 }
             }
@@ -588,219 +644,107 @@ function update() {
 }
 
 // ==========================================
-// 🎨 DETAILED CHARACTER & HERO FACE DRAWING
+// 🎨 DRAWING FUNCTIONS
 // ==========================================
 
 function drawDetailedPlayer(ctx, scale = 1) {
     ctx.save();
     ctx.scale(scale, scale);
 
-    // 影
     ctx.fillStyle = "rgba(0,0,0,0.3)";
-    ctx.beginPath(); ctx.ellipse(0, 16, 14, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(0, 14, 12, 5, 0, 0, Math.PI * 2); ctx.fill();
 
-    // マント
     ctx.fillStyle = "#dc2626";
-    ctx.beginPath();
-    ctx.moveTo(-12, -4); ctx.lineTo(-18, 18); ctx.lineTo(18, 18); ctx.lineTo(12, -4);
-    ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-10, -4); ctx.lineTo(-15, 16); ctx.lineTo(15, 16); ctx.lineTo(10, -4); ctx.closePath(); ctx.fill();
 
-    // 胴体・鎧
-    ctx.fillStyle = "#1e40af"; ctx.fillRect(-9, -6, 18, 20);
-    ctx.fillStyle = "#cbd5e1"; ctx.fillRect(-7, -4, 14, 10);
+    ctx.fillStyle = "#1e40af"; ctx.fillRect(-8, -5, 16, 18);
+    ctx.fillStyle = "#3b82f6"; ctx.beginPath(); ctx.arc(-11, 3, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#94a3b8"; ctx.fillRect(9, -10, 3, 18);
 
-    // 盾 (左手)
-    ctx.fillStyle = "#3b82f6"; ctx.beginPath(); ctx.arc(-13, 4, 7, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 1.5; ctx.stroke();
+    // 顔
+    ctx.fillStyle = "#ffedd5"; ctx.beginPath(); ctx.arc(0, -16, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#0f172a"; ctx.beginPath(); ctx.arc(-3, -17, 1.5, 0, Math.PI * 2); ctx.arc(3, -17, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#b91c1c"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(0, -13, 3, 0, Math.PI); ctx.stroke();
 
-    // 剣 (右手)
-    ctx.fillStyle = "#94a3b8"; ctx.fillRect(11, -12, 3, 20);
-    ctx.fillStyle = "#fbbf24"; ctx.fillRect(9, 2, 7, 3);
-
-    // ★【明確な顔の描画】★
-    ctx.fillStyle = "#ffedd5";
-    ctx.beginPath(); ctx.arc(0, -18, 11, 0, Math.PI * 2); ctx.fill();
-
-    // 目
-    ctx.fillStyle = "#0f172a";
-    ctx.beginPath(); ctx.arc(-4, -19, 1.8, 0, Math.PI * 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(4, -19, 1.8, 0, Math.PI * 2); ctx.fill();
-
-    // 口
-    ctx.strokeStyle = "#b91c1c"; ctx.lineWidth = 1.2;
-    ctx.beginPath(); ctx.arc(0, -15, 3.5, 0, Math.PI); ctx.stroke();
-
-    // 金髪
+    // 髪
     ctx.fillStyle = "#f59e0b";
     ctx.beginPath();
-    ctx.moveTo(-12, -20); ctx.lineTo(-7, -29); ctx.lineTo(-2, -22);
-    ctx.lineTo(3, -31); ctx.lineTo(8, -22); ctx.lineTo(13, -20);
-    ctx.lineTo(10, -14); ctx.lineTo(-10, -14); ctx.closePath(); ctx.fill();
-
-    // ヘッドバンド
-    ctx.fillStyle = "#2563eb"; ctx.fillRect(-10, -22, 20, 3);
+    ctx.moveTo(-10, -18); ctx.lineTo(-6, -26); ctx.lineTo(-1, -20);
+    ctx.lineTo(4, -28); ctx.lineTo(9, -18); ctx.closePath(); ctx.fill();
 
     ctx.restore();
 }
 
-function drawBattleHeroDiagonal(ctx, scale = 1.6) {
-    ctx.save();
-    ctx.scale(scale, scale);
+function drawStructures() {
+    structures.forEach(st => {
+        // 敷地内部
+        ctx.fillStyle = st.color;
+        ctx.fillRect(st.x, st.y, st.w, st.h);
 
-    ctx.fillStyle = "rgba(0,0,0,0.3)";
-    ctx.beginPath(); ctx.ellipse(0, 32, 24, 9, 0, 0, Math.PI * 2); ctx.fill();
+        // 外壁（厚み14px）
+        const wallThick = 14;
+        ctx.fillStyle = st.wallColor;
 
-    ctx.fillStyle = "#b91c1c";
-    ctx.beginPath();
-    ctx.moveTo(-10, -5); ctx.quadraticCurveTo(-45, 10, -35, 42);
-    ctx.quadraticCurveTo(-10, 38, 10, 20); ctx.closePath(); ctx.fill();
+        // 北壁
+        ctx.fillRect(st.x, st.y, st.w, wallThick);
+        // 西壁
+        ctx.fillRect(st.x, st.y, wallThick, st.h);
+        // 東壁
+        ctx.fillRect(st.x + st.w - wallThick, st.y, wallThick, st.h);
 
-    ctx.fillStyle = "#1e293b"; ctx.fillRect(-12, -10, 24, 36);
-    ctx.fillStyle = "#1d4ed8"; ctx.fillRect(-10, -8, 20, 18);
+        // 南壁（ゲート部分のみ空ける）
+        const leftSouthW = st.gateX - st.x;
+        const rightSouthX = st.gateX + st.gateW;
+        const rightSouthW = (st.x + st.w) - rightSouthX;
 
-    ctx.fillStyle = "#cbd5e1";
-    ctx.beginPath(); ctx.arc(12, -8, 9, 0, Math.PI * 2); ctx.fill();
+        ctx.fillRect(st.x, st.y + st.h - wallThick, leftSouthW, wallThick);
+        ctx.fillRect(rightSouthX, st.y + st.h - wallThick, rightSouthW, wallThick);
 
-    ctx.fillStyle = "#ffedd5";
-    ctx.beginPath(); ctx.arc(2, -24, 13, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#0f172a";
-    ctx.beginPath(); ctx.arc(8, -24, 1.8, 0, Math.PI * 2); ctx.fill();
+        // 入口ゲート表示
+        ctx.fillStyle = "#fbbf24";
+        ctx.fillRect(st.gateX - 2, st.y + st.h - wallThick - 2, 4, wallThick + 4);
+        ctx.fillRect(st.gateX + st.gateW - 2, st.y + st.h - wallThick - 2, 4, wallThick + 4);
 
-    ctx.fillStyle = "#f59e0b";
-    ctx.beginPath();
-    ctx.moveTo(-12, -24); ctx.lineTo(-22, -32); ctx.lineTo(-8, -36);
-    ctx.lineTo(4, -42); ctx.lineTo(14, -32); ctx.lineTo(16, -20); ctx.closePath(); ctx.fill();
+        // 名称看板
+        ctx.fillStyle = "#fff"; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "center";
+        ctx.fillText(`【 ${st.name} 】`, st.x + st.w / 2, st.y - 8);
 
-    ctx.restore();
+        // 魔王城結界描画
+        if (st.isDemonCastle && getDefeatedCadreCount() < 4) {
+            ctx.fillStyle = "rgba(244, 63, 94, 0.4)";
+            ctx.fillRect(st.gateX, st.y + st.h - wallThick, st.gateW, wallThick);
+            ctx.fillStyle = "#f43f5e"; ctx.font = "bold 12px sans-serif";
+            ctx.fillText("🚫 結界閉鎖中", st.gateX + st.gateW / 2, st.y + st.h + 15);
+        }
+    });
 }
-
-function drawNPC(ctx, type) {
-    ctx.save();
-    if (type === "king") {
-        ctx.fillStyle = "#eab308"; ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = "#fef08a"; ctx.fillRect(-8, -25, 16, 10);
-    } else if (type === "merchant") {
-        ctx.fillStyle = "#0284c7"; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI*2); ctx.fill();
-    } else if (type === "inn") {
-        ctx.fillStyle = "#16a34a"; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI*2); ctx.fill();
-    } else if (type === "knight") {
-        ctx.fillStyle = "#64748b"; ctx.beginPath(); ctx.arc(0, 0, 17, 0, Math.PI*2); ctx.fill();
-    } else {
-        ctx.fillStyle = "#ec4899"; ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI*2); ctx.fill();
-    }
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-4, -3, 3, 0, Math.PI*2); ctx.arc(4, -3, 3, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(-4, -3, 1.5, 0, Math.PI*2); ctx.arc(4, -3, 1.5, 0, Math.PI*2); ctx.fill();
-    ctx.restore();
-}
-
-function drawCadre(ctx, type, scale = 1) {
-    ctx.save();
-    ctx.scale(scale, scale);
-    if (type === "cadre_wind") {
-        ctx.fillStyle = "#22c55e"; ctx.beginPath(); ctx.ellipse(0, 0, 28, 38, 0, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = "#bbf7d0"; ctx.beginPath(); ctx.arc(0, -20, 16, 0, Math.PI*2); ctx.fill();
-    } else if (type === "cadre_water") {
-        ctx.fillStyle = "#0284c7"; ctx.beginPath(); ctx.ellipse(0, 0, 30, 40, 0, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = "#bae6fd"; ctx.beginPath(); ctx.arc(0, -22, 18, 0, Math.PI*2); ctx.fill();
-    } else if (type === "cadre_fire") {
-        ctx.fillStyle = "#dc2626"; ctx.beginPath(); ctx.ellipse(0, 0, 32, 42, 0, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = "#fecaca"; ctx.beginPath(); ctx.arc(0, -24, 20, 0, Math.PI*2); ctx.fill();
-    } else if (type === "cadre_thunder") {
-        ctx.fillStyle = "#ca8a04"; ctx.beginPath(); ctx.ellipse(0, 0, 35, 45, 0, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = "#fef08a"; ctx.beginPath(); ctx.arc(0, -26, 22, 0, Math.PI*2); ctx.fill();
-    } else if (type === "sub_wind") {
-        ctx.fillStyle = "#86efac"; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI*2); ctx.fill();
-    } else if (type === "sub_water") {
-        ctx.fillStyle = "#7dd3fc"; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI*2); ctx.fill();
-    } else if (type === "sub_fire") {
-        ctx.fillStyle = "#fca5a5"; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI*2); ctx.fill();
-    } else if (type === "sub_thunder") {
-        ctx.fillStyle = "#fde047"; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI*2); ctx.fill();
-    } else if (type === "slime") {
-        ctx.fillStyle = "#38bdf8"; ctx.beginPath(); ctx.arc(0, 4, 18, 0, Math.PI*2); ctx.fill();
-    } else if (type === "goblin") {
-        ctx.fillStyle = "#15803d"; ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI*2); ctx.fill();
-    } else if (type === "oak") {
-        ctx.fillStyle = "#b45309"; ctx.beginPath(); ctx.arc(0, 0, 25, 0, Math.PI*2); ctx.fill();
-    } else if (type === "golem") {
-        ctx.fillStyle = "#475569"; ctx.fillRect(-22, -22, 44, 44);
-    } else if (type === "lucifel") {
-        ctx.fillStyle = "#450a0a"; ctx.beginPath(); ctx.arc(0, 0, 48, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = "#facc15"; ctx.beginPath(); ctx.arc(-15, -10, 6, 0, Math.PI*2); ctx.arc(15, -10, 6, 0, Math.PI*2); ctx.fill();
-    }
-    ctx.restore();
-}
-
-// ==========================================
-// 🌾 GRAND WORLD MAP & BIG KINGDOM RENDER
-// ==========================================
 
 function drawField() {
     ctx.save();
     ctx.translate(-camera.x, -camera.y);
 
-    // 地形
+    // 地形ベース
     ctx.fillStyle = "#15803d"; ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-    ctx.fillStyle = "rgba(186, 230, 253, 0.3)"; ctx.fillRect(2200, 0, 1400, 1200);
-    ctx.fillStyle = "rgba(254, 240, 138, 0.25)"; ctx.fillRect(2200, 1200, 1400, 1600);
-    ctx.fillStyle = "rgba(239, 68, 68, 0.3)"; ctx.fillRect(0, 1000, 1200, 1800);
 
-    // 🏰【ルミナス王国】
-    ctx.fillStyle = "#94a3b8"; ctx.fillRect(350, 1850, 800, 700);
-    ctx.fillStyle = "#78350f"; ctx.fillRect(370, 1870, 760, 660);
-    ctx.fillStyle = "#475569";
-    ctx.fillRect(340, 1840, 820, 20); ctx.fillRect(340, 2550, 820, 20);
-    ctx.fillRect(340, 1840, 20, 730); ctx.fillRect(1140, 1840, 20, 730);
-
-    // 王宮
-    ctx.fillStyle = "#1e3a8a"; ctx.fillRect(650, 1880, 200, 120);
-    ctx.fillStyle = "#fbbf24"; ctx.font = "bold 13px sans-serif"; ctx.textAlign = "center";
-    ctx.fillText("【ルミナス王宮】", 750, 1870);
-
-    const houses = [
-        { x: 420, y: 2020, w: 100, h: 70, label: "鍛冶屋" },
-        { x: 880, y: 2020, w: 100, h: 70, label: "道具屋" },
-        { x: 420, y: 2260, w: 100, h: 70, label: "王立宿屋" },
-        { x: 880, y: 2260, w: 100, h: 70, label: "民家" }
-    ];
-    houses.forEach(h => {
-        ctx.fillStyle = "#b45309"; ctx.fillRect(h.x, h.y, h.w, h.h);
-        ctx.fillStyle = "#78350f"; ctx.fillRect(h.x + 10, h.y + 10, h.w - 20, h.h - 20);
-        ctx.fillStyle = "#fef08a"; ctx.font = "11px sans-serif";
-        ctx.fillText(h.label, h.x + h.w / 2, h.y - 5);
-    });
-
-    ctx.fillStyle = "#0284c7"; ctx.beginPath(); ctx.arc(750, 2180, 35, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = "#cbd5e1"; ctx.lineWidth = 4; ctx.stroke();
-
-    ctx.fillStyle = "#cbd5e1"; ctx.fillRect(730, 2000, 40, 550); ctx.fillRect(400, 2160, 700, 40);
-    ctx.fillStyle = "#1e293b"; ctx.fillRect(710, 2550, 80, 20);
+    // 地域ごとの色分けフィールド
+    ctx.fillStyle = "rgba(6, 182, 212, 0.15)"; ctx.fillRect(2000, 0, 1600, 1000); // 氷
+    ctx.fillStyle = "rgba(239, 68, 68, 0.15)"; ctx.fillRect(0, 1000, 1600, 1000); // 炎
+    ctx.fillStyle = "rgba(234, 179, 8, 0.15)"; ctx.fillRect(2000, 1000, 1600, 1000); // 雷
 
     // 街道
-    ctx.strokeStyle = "#d97706"; ctx.lineWidth = 36; ctx.lineCap = "round";
+    ctx.strokeStyle = "#d97706"; ctx.lineWidth = 28; ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(750, 2550); ctx.lineTo(750, 2700); ctx.lineTo(1800, 2700); ctx.lineTo(1800, 600);
-    ctx.moveTo(1800, 1400); ctx.lineTo(600, 1400); ctx.moveTo(1800, 1400); ctx.lineTo(3000, 1400);
-    ctx.moveTo(1800, 600); ctx.lineTo(600, 600); ctx.moveTo(1800, 600); ctx.lineTo(3000, 600);
+    // 王国から魔王城へ
+    ctx.moveTo(1800, 2000); ctx.lineTo(1800, 550);
+    // 各村/城への分岐路
+    ctx.moveTo(1800, 800); ctx.lineTo(400, 800); ctx.lineTo(400, 470);
+    ctx.moveTo(1800, 800); ctx.lineTo(3100, 800); ctx.lineTo(3100, 470);
+    ctx.moveTo(1800, 1800); ctx.lineTo(400, 1800); ctx.lineTo(400, 1470);
+    ctx.moveTo(1800, 1800); ctx.lineTo(3100, 1800); ctx.lineTo(3100, 1470);
     ctx.stroke();
 
-    // 🏰 魔王城
-    ctx.fillStyle = "#0f172a"; ctx.fillRect(1650, 200, 300, 300);
-    ctx.fillStyle = "#f43f5e"; ctx.font = "bold 15px sans-serif";
-    ctx.fillText("【終焉の魔王城】", 1800, 180);
-
-    // 結界（四天王未全滅時は城郭を赤い巨大壁で遮断）
-    if (getDefeatedCadreCount() < 4) {
-        ctx.strokeStyle = "rgba(244, 63, 94, 0.9)"; ctx.lineWidth = 12;
-        ctx.beginPath(); ctx.arc(1800, 380, 200, 0, Math.PI * 2); ctx.stroke();
-        ctx.fillStyle = "rgba(244, 63, 94, 0.25)"; ctx.fill();
-        ctx.fillStyle = "#f43f5e"; ctx.font = "bold 16px sans-serif";
-        ctx.fillText("🚫 侵入不可（絶対紅蓮結界）", 1800, 385);
-    }
-
-    ctx.fillStyle = "#fff"; ctx.font = "bold 13px sans-serif";
-    ctx.fillText("【疾風の塔】", 600, 480); ctx.fillText("【氷穴宮】", 3000, 480);
-    ctx.fillText("【業火坑】", 600, 1280); ctx.fillText("【雷鳴砦】", 3000, 1280);
+    // 城・村の描画
+    drawStructures();
 
     // NPCs
     npcs.forEach(npc => {
@@ -808,10 +752,10 @@ function drawField() {
         drawNPC(ctx, npc.type);
         ctx.restore();
         ctx.fillStyle = "#fff"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "center";
-        ctx.fillText(npc.name, npc.x, npc.y - 22);
+        ctx.fillText(npc.name, npc.x, npc.y - 20);
     });
 
-    // モンスター
+    // エネミー
     enemies.forEach(e => {
         ctx.save(); ctx.translate(e.x, e.y);
         drawCadre(ctx, e.type, e.isBoss ? 1.0 : e.isSubCadre ? 0.75 : 0.85);
@@ -820,12 +764,35 @@ function drawField() {
         ctx.fillText(e.name, e.x, e.y - (e.size || 20) - 6);
     });
 
-    // 主人公
+    // 勇者
     ctx.save(); ctx.translate(p.x, p.y);
     drawDetailedPlayer(ctx, 0.95);
     ctx.restore();
 
     ctx.restore();
+}
+
+function drawNPC(ctx, type) {
+    if (type === "king") { ctx.fillStyle = "#eab308"; }
+    else if (type === "merchant") { ctx.fillStyle = "#0284c7"; }
+    else if (type === "inn") { ctx.fillStyle = "#16a34a"; }
+    else { ctx.fillStyle = "#ec4899"; }
+    ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-3, -2, 2.5, 0, Math.PI*2); ctx.arc(3, -2, 2.5, 0, Math.PI*2); ctx.fill();
+}
+
+function drawCadre(ctx, type, scale = 1) {
+    ctx.scale(scale, scale);
+    if (type === "cadre_wind") { ctx.fillStyle = "#22c55e"; ctx.beginPath(); ctx.ellipse(0, 0, 24, 32, 0, 0, Math.PI*2); ctx.fill(); }
+    else if (type === "cadre_water") { ctx.fillStyle = "#0284c7"; ctx.beginPath(); ctx.ellipse(0, 0, 26, 34, 0, 0, Math.PI*2); ctx.fill(); }
+    else if (type === "cadre_fire") { ctx.fillStyle = "#dc2626"; ctx.beginPath(); ctx.ellipse(0, 0, 28, 36, 0, 0, Math.PI*2); ctx.fill(); }
+    else if (type === "cadre_thunder") { ctx.fillStyle = "#ca8a04"; ctx.beginPath(); ctx.ellipse(0, 0, 30, 38, 0, 0, Math.PI*2); ctx.fill(); }
+    else if (type.startsWith("sub_")) { ctx.fillStyle = "#94a3b8"; ctx.beginPath(); ctx.arc(0, 0, 15, 0, Math.PI*2); ctx.fill(); }
+    else if (type === "slime") { ctx.fillStyle = "#38bdf8"; ctx.beginPath(); ctx.arc(0, 2, 16, 0, Math.PI*2); ctx.fill(); }
+    else if (type === "goblin") { ctx.fillStyle = "#16a34a"; ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI*2); ctx.fill(); }
+    else if (type === "oak") { ctx.fillStyle = "#b45309"; ctx.beginPath(); ctx.arc(0, 0, 22, 0, Math.PI*2); ctx.fill(); }
+    else if (type === "golem") { ctx.fillStyle = "#475569"; ctx.fillRect(-20, -20, 40, 40); }
+    else if (type === "lucifel") { ctx.fillStyle = "#450a0a"; ctx.beginPath(); ctx.arc(0, 0, 44, 0, Math.PI*2); ctx.fill(); }
 }
 
 function drawShopView() {
@@ -878,21 +845,14 @@ function drawDialogueView() {
 }
 
 function drawBattleView() {
-    let skyGrad = ctx.createLinearGradient(0, 0, 0, 220);
-    skyGrad.addColorStop(0, "#020617"); skyGrad.addColorStop(1, "#1e1b4b");
-    ctx.fillStyle = skyGrad; ctx.fillRect(0, 0, canvas.width, 220);
-
-    let arenaGrad = ctx.createLinearGradient(100, 150, 700, 350);
-    arenaGrad.addColorStop(0, "#14532d"); arenaGrad.addColorStop(1, "#022c22");
-    ctx.fillStyle = arenaGrad;
-    ctx.beginPath();
-    ctx.moveTo(80, 170); ctx.lineTo(720, 170); ctx.lineTo(800, 340); ctx.lineTo(0, 340);
-    ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#020617"; ctx.fillRect(0, 0, canvas.width, 220);
+    ctx.fillStyle = "#14532d";
+    ctx.beginPath(); ctx.moveTo(80, 170); ctx.lineTo(720, 170); ctx.lineTo(800, 340); ctx.lineTo(0, 340); ctx.closePath(); ctx.fill();
 
     // 敵
     ctx.save();
     const enemyX = 560 + Math.sin(battleAnimTimer * 2) * 5;
-    const enemyY = 175 + Math.cos(battleAnimTimer * 1.5) * 3;
+    const enemyY = 175;
     ctx.translate(enemyX, enemyY);
     drawCadre(ctx, currentTarget.type, currentTarget.isBoss ? 1.8 : currentTarget.isSubCadre ? 1.1 : 1.3);
     ctx.restore();
@@ -901,7 +861,7 @@ function drawBattleView() {
     ctx.save();
     const heroX = 220, heroY = 270;
     ctx.translate(heroX, heroY);
-    drawBattleHeroDiagonal(ctx, 1.4);
+    drawDetailedPlayer(ctx, 1.8);
     ctx.restore();
 
     if (activeEffect === "SLASH") {
@@ -915,14 +875,13 @@ function drawBattleView() {
         ctx.beginPath(); ctx.arc(heroX, heroY - 20, 55, 0, Math.PI * 2); ctx.fill();
     }
 
-    // 敵HP
+    // HP表示
     ctx.fillStyle = "rgba(15, 23, 42, 0.85)"; ctx.fillRect(40, 20, 280, 60);
     ctx.fillStyle = "#fff"; ctx.font = "bold 15px sans-serif"; ctx.textAlign = "left";
     ctx.fillText(currentTarget.name, 55, 42);
     ctx.fillStyle = "#1e293b"; ctx.fillRect(55, 52, 240, 12);
     ctx.fillStyle = "#ef4444"; ctx.fillRect(55, 52, 240 * Math.max(0, currentTarget.hp / currentTarget.maxHp), 12);
 
-    // 勇者HP
     ctx.fillStyle = "rgba(15, 23, 42, 0.85)"; ctx.fillRect(480, 210, 280, 65);
     ctx.fillStyle = "#fbbf24"; ctx.font = "bold 15px sans-serif";
     ctx.fillText(`勇者 (LV ${p.lv})`, 495, 232);
@@ -949,7 +908,7 @@ function drawBattleView() {
         drawMenuButton(`3. ${WEAPONS[inv[2]] ? WEAPONS[inv[2]].name : '-'}`, 60, 410, 320, 40, "#38bdf8");
         drawMenuButton(`4. ${WEAPONS[inv[3]] ? WEAPONS[inv[3]].name : '-'}`, 420, 410, 320, 40, "#38bdf8");
     } else if (battleMenuMode === "SKILL_SELECT") {
-        drawMenuButton("1. 回復呪文 (12 MP)", 60, 360, 320, 40, "#a855f7");
+        drawMenuButton("1. 回復祈り (12 MP)", 60, 360, 320, 40, "#a855f7");
         drawMenuButton("2. 爆炎呪文 (18 MP)", 420, 360, 320, 40, "#a855f7");
         drawMenuButton(`3. 回復の薬 (${p.potions}個)`, 60, 410, 320, 40, "#4ade80");
     }
