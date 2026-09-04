@@ -2,1238 +2,595 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ソラゴンクエスト</title>
     <style>
-        * {
-            box-sizing: border-box;
-            user-select: none;
-            -webkit-user-select: none;
-        }
         body {
-            background-color: #020617;
-            color: #fff;
-            font-family: 'Segoe UI', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
             margin: 0;
-            padding: 10px;
+            background-color: #111;
+            color: #fff;
+            font-family: monospace;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             min-height: 100vh;
         }
-        #game-wrapper {
-            position: relative;
-            background-color: #0f172a;
-            border: 3px solid #38bdf8;
-            border-radius: 12px;
-            box-shadow: 0 0 40px rgba(56, 189, 248, 0.4);
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            max-width: 920px;
-            width: 100%;
-        }
-        h1 {
-            margin: 0 0 10px 0;
-            font-size: 22px;
-            color: #fbbf24;
-            text-shadow: 0 0 12px rgba(251, 191, 36, 0.6);
-            letter-spacing: 2px;
-        }
-        #canvas-container {
-            position: relative;
-            width: 800px;
-            height: 480px;
-            border: 3px solid #0284c7;
-            border-radius: 8px;
-            overflow: hidden;
-            background-color: #000;
-        }
         canvas {
-            display: block;
+            border: 4px solid #fff;
+            background-color: #000;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
         }
-        #ui-bar {
-            width: 100%;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            background: #020617;
-            border: 1px solid #0284c7;
-            padding: 10px 18px;
+        .instructions {
             margin-top: 10px;
-            border-radius: 6px;
-            font-size: 13px;
-            font-weight: bold;
-        }
-        .stat-group {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
-        .val { color: #38bdf8; }
-        .boss-flag { color: #f43f5e; font-weight: bold; }
-        #controls-hint {
-            margin-top: 8px;
-            font-size: 12px;
-            color: #94a3b8;
-        }
-        .key {
-            background: #1e293b;
-            padding: 2px 6px;
-            border-radius: 4px;
-            border: 1px solid #0284c7;
-            color: #38bdf8;
+            text-align: center;
+            font-size: 14px;
+            color: #ccc;
         }
     </style>
 </head>
 <body>
 
-<div id="game-wrapper">
-    <h1>⚔️ ソラゴンクエスト ⚔️</h1>
-    <div id="canvas-container">
-        <canvas id="gameCanvas" width="800" height="480"></canvas>
-    </div>
-    <div id="ui-bar">
-        <div class="stat-group">
-            <div>LV: <span id="ui-lv" class="val">1</span></div>
-            <div>HP: <span id="ui-hp" class="val">120/120</span></div>
-            <div>MP: <span id="ui-mp" class="val">50/50</span></div>
-            <div>G: <span id="ui-gold" class="val">250</span></div>
-            <div>薬: <span id="ui-potions" class="val">3</span></div>
-        </div>
-        <div class="stat-group">
-            <div>四天王撃破: <span id="ui-cadre" class="boss-flag">0 / 4</span></div>
-            <div>装備: <span id="ui-weapon" class="val" style="color:#fbbf24">鋼のロングソード</span></div>
-            <div>状態: <span id="ui-state" class="val" style="color:#fbbf24">タイトル画面</span></div>
-        </div>
-    </div>
-    <div id="controls-hint">
-        移動: <span class="key">WASD</span> / <span class="key">↑←↓→</span> | 話す・調べる: <span class="key">SPACE</span> | 戦闘コマンド: <span class="key">1</span> <span class="key">2</span> <span class="key">3</span> <span class="key">4</span> | セーブ: <span class="key">S</span> | ロード: <span class="key">L</span>
-    </div>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<div class="instructions">
+    [移動]: WASD / 矢印キー | [決定・話す]: SPACE | [セーブ]: S | [ロード]: L<br>
+    [戦闘コマンド]: 1:攻撃 | 2:武器換装 | 3:魔法・道具 | 4:防御
 </div>
 
 <script>
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-let gameState = "TITLE"; // "TITLE", "FIELD", "DIALOGUE", "BATTLE", "SHOP", "INN", "ENDING"
-let endingScrollY = 0;
+// --- ゲーム状態定義 ---
+const STATE_TITLE = 0;
+const STATE_FIELD = 1;
+const STATE_BATTLE = 2;
+const STATE_TALK = 3;
+const STATE_ENDING = 4;
 
-// --- マップ設定 (3600 x 2800) ---
-const WORLD_WIDTH = 3600;
-const WORLD_HEIGHT = 2800;
-const camera = { x: 0, y: 0, width: 800, height: 480 };
+let gameState = STATE_TITLE;
 
-// 武器データベース（価格と攻撃力を高難易度向けに再調整）
-const WEAPONS = {
-    sword: { id: "sword", name: "鋼のロングソード", type: "斬撃", atk: 25, hitRate: 0.95, price: 0 },
-    dagger: { id: "dagger", name: "影縫いの短剣", type: "刺突", atk: 50, hitRate: 0.98, critRate: 0.35, price: 800 },
-    axe: { id: "axe", name: "ギガントアックス", type: "打撃", atk: 100, hitRate: 0.75, price: 2500 },
-    holy: { id: "holy", name: "聖光のメイス", type: "聖なる光", atk: 160, hitRate: 0.9, price: 6000 },
-    excalibur: { id: "excalibur", name: "伝説の聖剣ルミナス", type: "神聖", atk: 260, hitRate: 0.99, critRate: 0.30, price: 15000 }
+// --- マップ・カメラ設定 ---
+const MAP_WIDTH = 3600;
+const MAP_HEIGHT = 2800;
+const TILE_SIZE = 40;
+
+// --- プレイヤーデータ ---
+const player = {
+    x: 400,
+    y: 400,
+    speed: 4,
+    size: 32,
+    level: 1,
+    hp: 50,
+    maxHp: 50,
+    mp: 20,
+    maxMp: 20,
+    atk: 12,
+    def: 5,
+    exp: 0,
+    nextExp: 20,
+    gold: 100,
+    potions: 3,
+    weaponIndex: 0,
+    defeatedBosses: 0 // 倒した四天王の数 (4で結界解除)
 };
 
-// プレイヤーデータ
-let p = {};
+// 武器リスト
+const weapons = [
+    { name: "銅の剣", atk: 5 },
+    { name: "鉄の剣", atk: 12 },
+    { name: "鋼の剣", atk: 22 },
+    { name: "炎の聖剣", atk: 35 },
+    { name: "竜王の光剣", atk: 50 }
+];
 
-function initPlayer() {
-    p = {
-        x: 1800, y: 2350, size: 16, speed: 4.5, dirX: 0, dirY: 1,
-        hp: 120, maxHp: 120, mp: 50, maxMp: 50,
-        baseAtk: 15, gold: 250, lv: 1, exp: 0, expToNext: 50,
-        potions: 3,
-        inventory: ["sword"],
-        equippedWeapon: "sword",
-        isGuarding: false,
-        cadreDefeated: { wind: false, water: false, fire: false, thunder: false }
-    };
-}
+// --- 敵・NPCデータ ---
+const bosses = [
+    { id: 0, name: "風の四天王シルフ", x: 800, y: 600, hp: 80, maxHp: 80, atk: 15, exp: 50, gold: 100, defeated: false, color: "#88ff88" },
+    { id: 1, name: "水の四天王ウンディーネ", x: 2800, y: 500, hp: 120, maxHp: 120, atk: 22, exp: 100, gold: 200, defeated: false, color: "#8888ff" },
+    { id: 2, name: "炎の四天王サラマンダー", x: 600, y: 2200, hp: 180, maxHp: 180, atk: 32, exp: 200, gold: 400, defeated: false, color: "#ff4444" },
+    { id: 3, name: "雷の四天王ヴォルテックス", x: 3000, y: 2200, hp: 250, maxHp: 250, atk: 45, exp: 400, gold: 800, defeated: false, color: "#ffff44" }
+];
 
-let currentTarget = null;
-let currentShopType = null;
-let shopSelection = 0;
+const demonKing = {
+    name: "終焉の魔王ルシフェル",
+    x: 1800,
+    y: 300,
+    hp: 600,
+    maxHp: 600,
+    atk: 65,
+    exp: 9999,
+    gold: 9999,
+    color: "#ff00ff"
+};
+
+// 結界の位置 (魔王城の前)
+const barrier = { x: 1750, y: 500, width: 100, height: 40 };
+
+// 街・NPC
+const inn = { x: 400, y: 300, name: "宿屋 (50Gで全回復)" };
+const shop = { x: 500, y: 300, name: "道具屋 (薬50G / 武器新調)" };
+
+// --- 会話・メッセージ管理 ---
+let messageQueue = [];
+let messageIndex = 0;
+
+// --- 戦闘管理 ---
+let currentEnemy = null;
 let battleLog = "";
-let battleMenuMode = "MAIN";
-let battleAnimTimer = 0;
-let activeEffect = null;
+let isPlayerTurn = true;
+let isDefending = false;
 
-// --- 🏰 構造物（城・村）と入口ゲートの定義 ---
-const structures = [
-    { id: "luminous", name: "始まりの王国ルミナス", x: 1400, y: 2000, w: 800, h: 500, gateX: 1740, gateW: 120, color: "#334155", wallColor: "#64748b", isCastle: true },
+// --- キー入力判定 ---
+const keys = {};
 
-    { id: "wind_village", name: "風の村ゼフィリア", x: 250, y: 650, w: 350, h: 280, gateX: 400, gateW: 80, color: "#14532d", wallColor: "#22c55e" },
-    { id: "wind_castle", name: "疾風の魔城", x: 250, y: 150, w: 350, h: 320, gateX: 400, gateW: 80, color: "#064e3b", wallColor: "#10b981", isCastle: true },
+window.addEventListener('keydown', (e) => {
+    keys[e.code] = true;
 
-    { id: "water_village", name: "氷の村アクアリス", x: 2950, y: 650, w: 350, h: 280, gateX: 3100, gateW: 80, color: "#0c4a6e", wallColor: "#38bdf8" },
-    { id: "water_castle", name: "氷華の魔城", x: 2950, y: 150, w: 350, h: 320, gateX: 3100, gateW: 80, color: "#164e63", wallColor: "#06b6d4", isCastle: true },
-
-    { id: "fire_village", name: "炎の村ヴァルカン", x: 250, y: 1650, w: 350, h: 280, gateX: 400, gateW: 80, color: "#7f1d1d", wallColor: "#ef4444" },
-    { id: "fire_castle", name: "業火の魔城", x: 250, y: 1150, w: 350, h: 320, gateX: 400, gateW: 80, color: "#450a0a", wallColor: "#dc2626", isCastle: true },
-
-    { id: "thunder_village", name: "雷の村ボルテックス", x: 2950, y: 1650, w: 350, h: 280, gateX: 3100, gateW: 80, color: "#713f12", wallColor: "#eab308" },
-    { id: "thunder_castle", name: "雷鳴の魔城", x: 2950, y: 1150, w: 350, h: 320, gateX: 3100, gateW: 80, color: "#422006", wallColor: "#ca8a04", isCastle: true },
-
-    { id: "demon_castle", name: "終焉の魔王城", x: 1550, y: 150, w: 500, h: 400, gateX: 1750, gateW: 100, color: "#2e1065", wallColor: "#a855f7", isDemonCastle: true }
-];
-
-function isInsideStructure(x, y, margin = 40) {
-    return structures.some(st => 
-        x >= (st.x - margin) && 
-        x <= (st.x + st.w + margin) && 
-        y >= (st.y - margin) && 
-        y <= (st.y + st.h + margin)
-    );
-}
-
-// NPC配置
-const npcs = [
-    { x: 1800, y: 2120, name: "国王ルミナス", type: "king", text: "勇者よ！四天王と魔王の軍勢は恐るべき強さだ。装備と覚悟を整えて挑むのだ！" },
-    { x: 1550, y: 2250, name: "王国武器屋", type: "merchant", role: "SHOP_WEAPON", text: "強敵に対抗するため高品質な武器を揃えているぞ！" },
-    { x: 2050, y: 2250, name: "王国道具屋", type: "merchant", role: "SHOP_ITEM", text: "回復の薬（80G）を持っていきなさい。" },
-    { x: 1550, y: 2400, name: "王立宿屋", type: "inn", role: "INN", text: "1泊 50G で体力を全回復します。" },
-
-    { x: 420, y: 730, name: "ゼフィリアの長老", type: "townsfolk", text: "北の疾風の魔城には3人の側近護衛がおる。彼らを全員倒さねば四天王ゼファーの居室へは入れん！" },
-    { x: 300, y: 800, name: "風の村宿屋", type: "inn", role: "INN", text: "1泊 50G で休んでいきな。" },
-
-    { x: 3120, y: 730, name: "アクアリスの少女", type: "townsfolk", text: "氷華の城の幹部近衛兵3人はとても強いです...レベルを上げてから挑んでね！" },
-    { x: 3200, y: 800, name: "氷の村宿屋", type: "inn", role: "INN", text: "1泊 50G で暖まっていきなさい。" },
-
-    { x: 420, y: 1730, name: "ヴァルカンの戦士", type: "townsfolk", text: "業火の城へ乗り込むなら強力な武器が必須だ！周辺のモンスターで修行するのだ！" },
-    { x: 300, y: 1800, name: "炎の村宿屋", type: "inn", role: "INN", text: "1泊 50G だ。しっかり休めよ！" },
-
-    { x: 3120, y: 1730, name: "ボルテックスの賢者", type: "townsfolk", text: "四天王を滅ぼせば魔王城の結界が消える。魔王の力は圧倒的だ、聖剣なしでは勝ち目はないぞ！" },
-    { x: 3200, y: 1800, name: "雷の村宿屋", type: "inn", role: "INN", text: "1泊 50G で疲れを癒やしましょう。" }
-];
-
-// エネミーデータの初期化関数（ステータス大幅強化）
-let enemies = [];
-function initEnemies() {
-    enemies = [
-        // 🌪️ 疾風の魔城
-        { x: 425, y: 240, name: "【疾風将】ゼファー", hp: 1200, maxHp: 1200, atk: 70, exp: 600, gold: 1200, type: "cadre_wind", size: 36, isCadre: "wind" },
-        { x: 330, y: 350, name: "疾風の護衛・アスカ", hp: 450, maxHp: 450, atk: 45, exp: 180, gold: 300, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
-        { x: 425, y: 380, name: "疾風の護衛・フウガ", hp: 450, maxHp: 450, atk: 45, exp: 180, gold: 300, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
-        { x: 520, y: 350, name: "疾風の護衛・ハヤテ", hp: 500, maxHp: 500, atk: 50, exp: 220, gold: 350, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
-
-        // ❄️ 氷華の魔城
-        { x: 3125, y: 240, name: "【氷華后】アクアリア", hp: 2200, maxHp: 2200, atk: 110, exp: 1200, gold: 2200, type: "cadre_water", size: 36, isCadre: "water" },
-        { x: 3030, y: 350, name: "氷華の近衛・シグラ", hp: 700, maxHp: 700, atk: 75, exp: 350, gold: 500, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
-        { x: 3125, y: 380, name: "氷華の近衛・ヒョウガ", hp: 700, maxHp: 700, atk: 75, exp: 350, gold: 500, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
-        { x: 3220, y: 350, name: "氷華の近衛・フロスト", hp: 800, maxHp: 800, atk: 85, exp: 420, gold: 600, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
-
-        // 🔥 業火の魔城
-        { x: 425, y: 1240, name: "【業火帝】ブレイズ", hp: 3500, maxHp: 3500, atk: 150, exp: 2000, gold: 3500, type: "cadre_fire", size: 38, isCadre: "fire" },
-        { x: 330, y: 1350, name: "業火の突撃兵・プロメノ", hp: 1100, maxHp: 1100, atk: 105, exp: 600, gold: 800, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
-        { x: 425, y: 1380, name: "業火の突撃兵・イグニス", hp: 1100, maxHp: 1100, atk: 105, exp: 600, gold: 800, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
-        { x: 520, y: 1350, name: "業火の突撃兵・ヘルフレア", hp: 1300, maxHp: 1300, atk: 120, exp: 750, gold: 1000, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
-
-        // ⚡ 雷鳴の魔城
-        { x: 3125, y: 1240, name: "【雷鳴王】ボルト", hp: 5000, maxHp: 5000, atk: 190, exp: 3200, gold: 5000, type: "cadre_thunder", size: 40, isCadre: "thunder" },
-        { x: 3030, y: 1350, name: "雷鳴の執行官・ライガ", hp: 1600, maxHp: 1600, atk: 135, exp: 1000, gold: 1200, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
-        { x: 3125, y: 1380, name: "雷鳴の執行官・ヴォルト", hp: 1600, maxHp: 1600, atk: 135, exp: 1000, gold: 1200, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
-        { x: 3220, y: 1350, name: "雷鳴の執行官・サンダー", hp: 1800, maxHp: 1800, atk: 150, exp: 1200, gold: 1500, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
-
-        // 👑 終焉の魔王城（聖剣ルミナス+ガード・魔法使用でギリギリ勝てるバランス）
-        { x: 1800, y: 320, name: "【終焉の魔王】ルシフェル", hp: 8500, maxHp: 8500, atk: 255, exp: 0, gold: 0, type: "lucifel", size: 50, isBoss: true }
-    ];
-
-    spawnWildMonsters();
-}
-
-function spawnWildMonsters() {
-    const mobTypes = [
-        { name: "スライム", hp: 80, atk: 18, exp: 35, gold: 50, type: "slime", zone: "center" },
-        { name: "野良ゴブリン", hp: 220, atk: 38, exp: 80, gold: 120, type: "goblin", zone: "wind" },
-        { name: "荒野のオーク", hp: 480, atk: 65, exp: 180, gold: 260, type: "oak", zone: "water" },
-        { name: "炎の魔物", hp: 900, atk: 110, exp: 400, gold: 550, type: "golem", zone: "fire" },
-        { name: "雷光の巨人", hp: 1500, atk: 155, exp: 800, gold: 1100, type: "golem", zone: "thunder" }
-    ];
-
-    mobTypes.forEach(mob => {
-        for (let i = 0; i < 8; i++) {
-            let rx = 0, ry = 0;
-            let validPos = false;
-            let attempts = 0;
-
-            while (!validPos && attempts < 200) {
-                attempts++;
-                if (mob.zone === "center") { rx = 1000 + Math.random() * 1600; ry = 1800 + Math.random() * 800; }
-                else if (mob.zone === "wind") { rx = 200 + Math.random() * 1200; ry = 200 + Math.random() * 1000; }
-                else if (mob.zone === "water") { rx = 2200 + Math.random() * 1200; ry = 200 + Math.random() * 1000; }
-                else if (mob.zone === "fire") { rx = 200 + Math.random() * 1200; ry = 1200 + Math.random() * 1000; }
-                else if (mob.zone === "thunder") { rx = 2200 + Math.random() * 1200; ry = 1200 + Math.random() * 1000; }
-
-                if (!isInsideStructure(rx, ry, 80)) {
-                    validPos = true;
-                }
-            }
-
-            if (validPos) {
-                enemies.push({
-                    x: rx, y: ry, vx: 0, vy: 0, moveTimer: 0,
-                    name: mob.name, hp: mob.hp, maxHp: mob.hp,
-                    atk: mob.atk, exp: mob.exp, gold: mob.gold,
-                    type: mob.type, size: 22, isWandering: true
-                });
-            }
-        }
-    });
-}
-
-initPlayer();
-initEnemies();
-
-// --- 💾 セーブ＆ロード機能 ---
-function saveGame() {
-    if (gameState !== "FIELD") {
-        alert("⚠️ フィールド移動中のみセーブ可能です。");
+    // タイトル画面の決定
+    if (gameState === STATE_TITLE && e.code === 'Space') {
+        gameState = STATE_FIELD;
         return;
     }
+
+    // 会話メッセージ送り処理（結界でのスタックを解消する重要箇所）
+    if (gameState === STATE_TALK && e.code === 'Space') {
+        messageIndex++;
+        if (messageIndex >= messageQueue.length) {
+            // メッセージ終了後、確実にフィールド探索状態へ完全復帰する
+            gameState = STATE_FIELD;
+            messageQueue = [];
+            messageIndex = 0;
+        }
+        return;
+    }
+
+    // フィールドでのセーブ / ロード
+    if (gameState === STATE_FIELD) {
+        if (e.code === 'KeyS') saveGame();
+        if (e.code === 'KeyL') loadGame();
+    }
+
+    // 戦闘コマンド選択
+    if (gameState === STATE_BATTLE && isPlayerTurn) {
+        if (e.code === 'Digit1') playerAttack();
+        if (e.code === 'Digit2') switchWeapon();
+        if (e.code === 'Digit3') useMagicOrItem();
+        if (e.code === 'Digit4') playerDefend();
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    keys[e.code] = false;
+});
+
+// --- ダイアログ表示処理 ---
+function showMessage(lines) {
+    messageQueue = Array.isArray(lines) ? lines : [lines];
+    messageIndex = 0;
+    gameState = STATE_TALK;
+}
+
+// --- セーブ & ロード ---
+function saveGame() {
     const saveData = {
-        p: p,
-        defeatedCadres: p.cadreDefeated
+        player: player,
+        bosses: bosses
     };
-    localStorage.setItem("soragon_quest_save", JSON.stringify(saveData));
-    alert("💾 ゲームデータをセーブしました！");
+    localStorage.setItem('soragon_quest_save', JSON.stringify(saveData));
+    showMessage(["ゲームの記録を保存しました！"]);
 }
 
 function loadGame() {
-    const saveData = localStorage.getItem("soragon_quest_save");
-    if (!saveData) {
-        alert("⚠️ セーブデータが見つかりません。");
+    const saveData = localStorage.getItem('soragon_quest_save');
+    if (saveData) {
+        const parsed = JSON.parse(saveData);
+        Object.assign(player, parsed.player);
+        parsed.bosses.forEach((b, i) => bosses[i].defeated = b.defeated);
+        showMessage(["データをロードしました！"]);
+    } else {
+        showMessage(["セーブデータが見つかりません。"]);
+    }
+}
+
+// --- 移動 & 判定更新 ---
+function update() {
+    if (gameState !== STATE_FIELD) return;
+
+    let dx = 0;
+    let dy = 0;
+
+    if (keys['KeyW'] || keys['ArrowUp']) dy -= player.speed;
+    if (keys['KeyS'] || keys['ArrowDown']) dy += player.speed;
+    if (keys['KeyA'] || keys['ArrowLeft']) dx -= player.speed;
+    if (keys['KeyD'] || keys['ArrowRight']) dx += player.speed;
+
+    let nextX = player.x + dx;
+    let nextY = player.y + dy;
+
+    // マップ境界チェック
+    nextX = Math.max(0, Math.min(MAP_WIDTH - player.size, nextX));
+    nextY = Math.max(0, Math.min(MAP_HEIGHT - player.size, nextY));
+
+    // 結界接触チェック（改善ポイント）
+    if (nextX < barrier.x + barrier.width &&
+        nextX + player.size > barrier.x &&
+        nextY < barrier.y + barrier.height &&
+        nextY + player.size > barrier.y) {
+
+        if (player.defeatedBosses < 4) {
+            // 四天王を倒していない場合は結界を通過させず、メッセージを表示して復帰可能な状態にする
+            showMessage([
+                "魔王城の結界が立ちはだかっている！",
+                "四天王（風・水・炎・雷）をすべて倒さなければ",
+                "この結界を破ることはできない！"
+            ]);
+            return;
+        }
+    }
+
+    player.x = nextX;
+    player.y = nextY;
+
+    // 宿屋・ショップとの接触（SPACEキーでインタラクト）
+    if (keys['Space']) {
+        if (Math.hypot(player.x - inn.x, player.y - inn.y) < 50) {
+            if (player.gold >= 50) {
+                player.gold -= 50;
+                player.hp = player.maxHp;
+                player.mp = player.maxMp;
+                showMessage(["宿屋で体力を全回復した！"]);
+            } else {
+                showMessage(["ゴールドが足りない！(50G必要)"]);
+            }
+            keys['Space'] = false;
+            return;
+        }
+        if (Math.hypot(player.x - shop.x, player.y - shop.y) < 50) {
+            if (player.gold >= 50) {
+                player.gold -= 50;
+                player.potions++;
+                showMessage(["回復薬を1つ買った！"]);
+            } else {
+                showMessage(["ゴールドが足りない！"]);
+            }
+            keys['Space'] = false;
+            return;
+        }
+    }
+
+    // 四天王シンボルとの接触 -> バトル開始
+    bosses.forEach(boss => {
+        if (!boss.defeated && Math.hypot(player.x - boss.x, player.y - boss.y) < 35) {
+            startBattle(boss);
+        }
+    });
+
+    // 魔王との接触 -> バトル開始
+    if (player.defeatedBosses >= 4 && Math.hypot(player.x - demonKing.x, player.y - demonKing.y) < 40) {
+        startBattle(demonKing);
+    }
+
+    // ランダムエンカウント（雑魚敵）
+    if ((dx !== 0 || dy !== 0) && Math.random() < 0.005) {
+        const mobAtk = 8 + player.level * 2;
+        const mobHp = 25 + player.level * 10;
+        startBattle({
+            name: "魔物の群れ",
+            hp: mobHp,
+            maxHp: mobHp,
+            atk: mobAtk,
+            exp: 15 * player.level,
+            gold: 20 * player.level,
+            color: "#aaaaaa",
+            isMob: true
+        });
+    }
+}
+
+// --- バトル処理 ---
+function startBattle(enemy) {
+    currentEnemy = enemy;
+    gameState = STATE_BATTLE;
+    battleLog = `${enemy.name} があらわれた！`;
+    isPlayerTurn = true;
+}
+
+function playerAttack() {
+    const totalAtk = player.atk + weapons[player.weaponIndex].atk;
+    const damage = Math.max(1, Math.floor(totalAtk * (0.8 + Math.random() * 0.4)) - player.def);
+    currentEnemy.hp -= damage;
+    battleLog = `あなたの攻撃！ ${currentEnemy.name} に ${damage} のダメージ！`;
+
+    if (currentEnemy.hp <= 0) {
+        winBattle();
+    } else {
+        isPlayerTurn = false;
+        setTimeout(enemyTurn, 1000);
+    }
+}
+
+function switchWeapon() {
+    player.weaponIndex = (player.weaponIndex + 1) % weapons.length;
+    battleLog = `武器を [${weapons[player.weaponIndex].name}] に変更した！`;
+    isPlayerTurn = false;
+    setTimeout(enemyTurn, 1000);
+}
+
+function useMagicOrItem() {
+    if (player.potions > 0) {
+        player.potions--;
+        const heal = 50;
+        player.hp = Math.min(player.maxHp, player.hp + heal);
+        battleLog = `回復薬を使った！ HPが ${heal} 回復した！`;
+    } else if (player.mp >= 8) {
+        player.mp -= 8;
+        const damage = 40 + player.level * 5;
+        currentEnemy.hp -= damage;
+        battleLog = `メラゾーマを唱えた！ ${damage} の魔法ダメージ！`;
+        if (currentEnemy.hp <= 0) {
+            winBattle();
+            return;
+        }
+    } else {
+        battleLog = `アイテムもMPも足りない！`;
         return;
     }
-    try {
-        const data = JSON.parse(saveData);
-        p = data.p;
-        p.cadreDefeated = data.defeatedCadres || p.cadreDefeated;
-        
-        // 敵の撃破状態を反映して初期化
-        initEnemies();
-        enemies = enemies.filter(e => {
-            if (e.isCadre && p.cadreDefeated[e.isCadre]) return false;
-            return true;
-        });
-
-        gameState = "FIELD";
-        updateUI();
-        alert("📂 セーブデータをロードしました！");
-    } catch (err) {
-        alert("⚠️ セーブデータの読み込みに失敗しました。");
-    }
-}
-
-const keys = {};
-
-window.addEventListener('keydown', e => {
-    keys[e.code] = true;
-    if (gameState === "TITLE" && (e.code === 'Space' || e.code === 'Enter')) {
-        initPlayer();
-        initEnemies();
-        gameState = "FIELD";
-    } else if (gameState === "ENDING" && (e.code === 'Space' || e.code === 'Enter')) {
-        gameState = "TITLE";
-    } else if (gameState === "FIELD") {
-        if (e.code === 'Space') checkFieldInteraction();
-        else if (e.code === 'KeyS') saveGame();
-        else if (e.code === 'KeyL') loadGame();
-    } else if (gameState === "DIALOGUE" && e.code === 'Space') {
-        gameState = "FIELD";
-    } else if (gameState === "SHOP") {
-        handleShopInput(e.code);
-    } else if (gameState === "INN" && e.code === 'Space') {
-        executeInn();
-    } else if (gameState === "BATTLE") {
-        handleBattleInput(e.code);
-    }
-    updateUI();
-});
-
-window.addEventListener('keyup', e => { keys[e.code] = false; });
-
-function getDefeatedCadreCount() {
-    return Object.values(p.cadreDefeated).filter(Boolean).length;
-}
-
-function updateUI() {
-    document.getElementById('ui-lv').innerText = p.lv;
-    document.getElementById('ui-hp').innerText = `${Math.max(0, p.hp)}/${p.maxHp}`;
-    document.getElementById('ui-mp').innerText = `${Math.max(0, p.mp)}/${p.maxMp}`;
-    document.getElementById('ui-gold').innerText = p.gold;
-    document.getElementById('ui-potions').innerText = p.potions;
-    document.getElementById('ui-cadre').innerText = `${getDefeatedCadreCount()} / 4`;
-    document.getElementById('ui-weapon').innerText = WEAPONS[p.equippedWeapon].name;
-
-    const stateEl = document.getElementById('ui-state');
-    if (gameState === "TITLE") { stateEl.innerText = "タイトル画面"; stateEl.style.color = "#fbbf24"; }
-    else if (gameState === "FIELD") { stateEl.innerText = "フィールド探索"; stateEl.style.color = "#4ade80"; }
-    else if (gameState === "DIALOGUE") { stateEl.innerText = "会話中"; stateEl.style.color = "#fbbf24"; }
-    else if (gameState === "SHOP") { stateEl.innerText = "ショップ利用中"; stateEl.style.color = "#38bdf8"; }
-    else if (gameState === "BATTLE") { stateEl.innerText = "ターン制バトル"; stateEl.style.color = "#f87171"; }
-    else if (gameState === "ENDING") { stateEl.innerText = "エンディング"; stateEl.style.color = "#a855f7"; }
-}
-
-function checkCollisionWithWalls(nextX, nextY) {
-    const wallThick = 14;
-
-    for (let st of structures) {
-        if (st.isDemonCastle && getDefeatedCadreCount() < 4) {
-            if (nextX >= st.gateX - 20 && nextX <= st.gateX + st.gateW + 20 &&
-                nextY >= st.y + st.h - 30 && nextY <= st.y + st.h + 20) {
-                alert(`🛡️ 強大な紅蓮結界が阻んでいる！\n四天王（残り ${4 - getDefeatedCadreCount()} 人）をすべて討伐するまで魔王城の門は開かない！`);
-                return true;
-            }
-        }
-
-        if (circleRectOverlap(nextX, nextY, p.size, st.x, st.y, st.w, wallThick)) return true;
-        if (circleRectOverlap(nextX, nextY, p.size, st.x, st.y, wallThick, st.h)) return true;
-        if (circleRectOverlap(nextX, nextY, p.size, st.x + st.w - wallThick, st.y, wallThick, st.h)) return true;
-
-        const leftSouthW = st.gateX - st.x;
-        const rightSouthX = st.gateX + st.gateW;
-        const rightSouthW = (st.x + st.w) - rightSouthX;
-
-        if (leftSouthW > 0 && circleRectOverlap(nextX, nextY, p.size, st.x, st.y + st.h - wallThick, leftSouthW, wallThick)) return true;
-        if (rightSouthW > 0 && circleRectOverlap(nextX, nextY, p.size, rightSouthX, st.y + st.h - wallThick, rightSouthW, wallThick)) return true;
-    }
-    return false;
-}
-
-function circleRectOverlap(cx, cy, r, rx, ry, rw, rh) {
-    let closestX = Math.max(rx, Math.min(cx, rx + rw));
-    let closestY = Math.max(ry, Math.min(cy, ry + rh));
-    let distX = cx - closestX;
-    let distY = cy - closestY;
-    return (distX * distX + distY * distY) < (r * r);
-}
-
-function checkFieldInteraction() {
-    for (let npc of npcs) {
-        if (Math.hypot(p.x - npc.x, p.y - npc.y) < 45) {
-            currentTarget = npc;
-            if (npc.role === "SHOP_WEAPON") {
-                gameState = "SHOP"; currentShopType = "WEAPON"; shopSelection = 0;
-            } else if (npc.role === "SHOP_ITEM") {
-                gameState = "SHOP"; currentShopType = "ITEM"; shopSelection = 0;
-            } else if (npc.role === "INN") {
-                gameState = "INN";
-            } else {
-                gameState = "DIALOGUE";
-            }
-            updateUI();
-            return;
-        }
-    }
-
-    for (let enemy of enemies) {
-        if (Math.hypot(p.x - enemy.x, p.y - enemy.y) < 45) {
-            if (enemy.isCadre) {
-                const subLeft = enemies.filter(e => e.isSubCadre && e.parentCadre === enemy.isCadre).length;
-                if (subLeft > 0) {
-                    alert(`⚠️ 城内の配下（残り ${subLeft} 人）を討ち倒さなければ幹部【${enemy.name}】の居室へは入れない！`);
-                    return;
-                }
-            }
-            if (enemy.isBoss && getDefeatedCadreCount() < 4) {
-                alert(`🛡️ 強大な結界が阻んでいる！ 四天王（残り ${4 - getDefeatedCadreCount()} 人）を討伐しなければ魔王には挑めない！`);
-                return;
-            }
-            startBattle(enemy);
-            return;
-        }
-    }
-}
-
-function handleShopInput(code) {
-    if (code === 'KeyW' || code === 'ArrowUp') shopSelection = Math.max(0, shopSelection - 1);
-    if (code === 'KeyS' || code === 'ArrowDown') shopSelection++;
-
-    if (currentShopType === "WEAPON") {
-        const weaponKeys = Object.keys(WEAPONS);
-        shopSelection = Math.min(weaponKeys.length - 1, shopSelection);
-        if (code === 'Space') {
-            const wKey = weaponKeys[shopSelection];
-            const w = WEAPONS[wKey];
-            if (p.inventory.includes(wKey)) {
-                p.equippedWeapon = wKey;
-                alert(`🗡️ 【${w.name}】を装備しました！`);
-            } else if (p.gold >= w.price) {
-                p.gold -= w.price;
-                p.inventory.push(wKey);
-                p.equippedWeapon = wKey;
-                alert(`🛒 【${w.name}】を購入して装備しました！`);
-            } else {
-                alert("⚠️ ゴールドが足りません！");
-            }
-        }
-    } else if (currentShopType === "ITEM") {
-        shopSelection = 0;
-        if (code === 'Space') {
-            if (p.gold >= 80) {
-                p.gold -= 80;
-                p.potions++;
-                alert("🧪 回復の薬を購入しました！ (HP 180回復)");
-            } else {
-                alert("⚠️ ゴールドが足りません！");
-            }
-        }
-    }
-    if (code === 'Escape') gameState = "FIELD";
-    updateUI();
-}
-
-function executeInn() {
-    if (p.gold >= 50) {
-        p.gold -= 50;
-        p.hp = p.maxHp;
-        p.mp = p.maxMp;
-        alert("🏨 宿屋で旅の疲れを完全に癒やした！ HPとMPが全回復！");
-    } else {
-        alert("⚠️ ゴールドが足りません！");
-    }
-    gameState = "FIELD";
-    updateUI();
-}
-
-function startBattle(enemy) {
-    // 🔥 再戦時は必ず敵のHPを全回復させて対戦を開始する
-    enemy.hp = enemy.maxHp;
-
-    currentTarget = enemy;
-    gameState = "BATTLE";
-    battleMenuMode = "MAIN";
-    p.isGuarding = false;
-    battleLog = `⚔️ ${enemy.name} が立ちはだかった！`;
-    updateUI();
-}
-
-function handleBattleInput(code) {
-    if (battleMenuMode === "MAIN") {
-        if (code === 'Digit1') executePlayerAttack();
-        else if (code === 'Digit2') battleMenuMode = "WEAPON_SELECT";
-        else if (code === 'Digit3') battleMenuMode = "SKILL_SELECT";
-        else if (code === 'Digit4') executePlayerGuard();
-    } else if (battleMenuMode === "WEAPON_SELECT") {
-        const weaponKeys = p.inventory;
-        if (code === 'Digit1' && weaponKeys[0]) p.equippedWeapon = weaponKeys[0];
-        if (code === 'Digit2' && weaponKeys[1]) p.equippedWeapon = weaponKeys[1];
-        if (code === 'Digit3' && weaponKeys[2]) p.equippedWeapon = weaponKeys[2];
-        if (code === 'Digit4' && weaponKeys[3]) p.equippedWeapon = weaponKeys[3];
-        battleLog = `🗡️ 武器を【${WEAPONS[p.equippedWeapon].name}】に変更！`;
-        battleMenuMode = "MAIN";
-        updateUI();
-    } else if (battleMenuMode === "SKILL_SELECT") {
-        if (code === 'Digit1') executeSkill("heal");
-        else if (code === 'Digit2') executeSkill("fire");
-        else if (code === 'Digit3') executeSkill("item");
-        else battleMenuMode = "MAIN";
-    }
-}
-
-function executePlayerAttack() {
-    const w = WEAPONS[p.equippedWeapon];
-    const hit = Math.random() < w.hitRate;
-    let isCrit = w.critRate && Math.random() < w.critRate;
-
-    activeEffect = "SLASH";
-    setTimeout(() => { activeEffect = null; }, 600);
-
-    if (!hit) {
-        battleLog = `⚔️ 攻撃を繰り出したが ${currentTarget.name} にかわされた！`;
-    } else {
-        let dmg = p.baseAtk + w.atk + Math.floor(Math.random() * 15);
-        if (isCrit) dmg = Math.floor(dmg * 1.8);
-        currentTarget.hp -= dmg;
-        battleLog = `💥 ${w.name} の一撃！ ${currentTarget.name} に ${dmg} ダメージ！${isCrit ? " (会心の一撃！)" : ""}`;
-    }
-
-    if (checkBattleEnd()) return;
+    isPlayerTurn = false;
     setTimeout(enemyTurn, 1000);
 }
 
-function executePlayerGuard() {
-    p.isGuarding = true;
-    battleLog = "🛡️ 盾を構えてガード態勢を取った！ (被ダメージ半減)";
-    setTimeout(enemyTurn, 1000);
-}
-
-function executeSkill(type) {
-    if (type === "heal") {
-        if (p.mp < 15) { battleLog = "⚠️ MPが足りない！"; return; }
-        p.mp -= 15;
-        p.hp = Math.min(p.maxHp, p.hp + 160);
-        activeEffect = "HEAL";
-        setTimeout(() => { activeEffect = null; }, 600);
-        battleLog = "✨ 聖なる祈り！ HPが 160 回復！";
-    } else if (type === "fire") {
-        if (p.mp < 24) { battleLog = "⚠️ MPが足りない！"; return; }
-        p.mp -= 24;
-        const dmg = 280;
-        currentTarget.hp -= dmg;
-        activeEffect = "FIRE";
-        setTimeout(() => { activeEffect = null; }, 600);
-        battleLog = `🔥 爆炎呪文ヴォルカノ！ ${currentTarget.name} に ${dmg} ダメージ！`;
-    } else if (type === "item") {
-        if (p.potions <= 0) { battleLog = "⚠️ 回復の薬がない！"; return; }
-        p.potions--;
-        p.hp = Math.min(p.maxHp, p.hp + 180);
-        activeEffect = "HEAL";
-        setTimeout(() => { activeEffect = null; }, 600);
-        battleLog = "🧪 回復の薬を使用！ HPが 180 回復！";
-    }
-    battleMenuMode = "MAIN";
-    updateUI();
-    if (checkBattleEnd()) return;
+function playerDefend() {
+    isDefending = true;
+    battleLog = `身構えている！ ダメージを軽減する。`;
+    isPlayerTurn = false;
     setTimeout(enemyTurn, 1000);
 }
 
 function enemyTurn() {
-    if (currentTarget.hp <= 0) return;
-    let dmg = currentTarget.atk + Math.floor(Math.random() * 15);
-    if (p.isGuarding) dmg = Math.floor(dmg * 0.45);
+    if (gameState !== STATE_BATTLE) return;
 
-    p.hp -= dmg;
-    p.isGuarding = false;
-    activeEffect = "ENEMY_ATTACK";
-    setTimeout(() => { activeEffect = null; }, 600);
-
-    battleLog = `💥 ${currentTarget.name} の苛烈な撃破攻撃！ 勇者は ${dmg} ダメージを受けた！`;
-
-    if (p.hp <= 0) {
-        alert("💀 勇者は力尽きてしまった… 王国ルミナスで復活します。");
-        p.hp = p.maxHp;
-        p.mp = p.maxMp;
-        gameState = "FIELD";
-        p.x = 1800; p.y = 2350;
-    }
-    updateUI();
-}
-
-function checkBattleEnd() {
-    if (currentTarget.hp <= 0) {
-        p.gold += currentTarget.gold;
-        p.exp += currentTarget.exp;
-        battleLog = `🎉 ${currentTarget.name} を撃破！ (+${currentTarget.exp} EXP, +${currentTarget.gold}G)`;
-
-        if (currentTarget.isCadre) {
-            p.cadreDefeated[currentTarget.isCadre] = true;
-            alert(`🏆 四天王【${currentTarget.name}】を撃破！ (残り四天王: ${4 - getDefeatedCadreCount()} 人)`);
-        } else if (currentTarget.isSubCadre) {
-            const subLeft = enemies.filter(e => e.isSubCadre && e.parentCadre === currentTarget.parentCadre && e !== currentTarget).length;
-            alert(`⚔️ 城の配下【${currentTarget.name}】を破った！ (残る配下: ${subLeft} 人)`);
-        }
-
-        if (p.exp >= p.expToNext) {
-            p.lv++;
-            p.maxHp += 35; p.hp = p.maxHp;
-            p.maxMp += 15; p.mp = p.maxMp;
-            p.baseAtk += 10;
-            p.expToNext = Math.floor(p.expToNext * 1.55);
-            alert(`🌟 LEVEL UP! LV ${p.lv} に上がった！ (最大HP/MP・基礎攻撃力が上昇)`);
-        }
-
-        const isBossDefeated = currentTarget.isBoss;
-        enemies = enemies.filter(e => e !== currentTarget);
-
-        setTimeout(() => {
-            if (isBossDefeated) {
-                alert("🎊 絶望の末に終焉の魔王ルシフェルを打ち倒し、世界に平和を取り戻した！");
-                endingScrollY = 0;
-                gameState = "ENDING";
-            } else {
-                gameState = "FIELD";
-            }
-            updateUI();
-        }, 1200);
-        return true;
-    }
-    return false;
-}
-
-function update() {
-    battleAnimTimer += 0.05;
-    if (gameState !== "FIELD") return;
-
-    let dx = 0, dy = 0;
-    if (keys['KeyW'] || keys['ArrowUp']) dy -= 1;
-    if (keys['KeyS'] || keys['ArrowDown']) dy += 1;
-    if (keys['KeyA'] || keys['ArrowLeft']) dx -= 1;
-    if (keys['KeyD'] || keys['ArrowRight']) dx += 1;
-
-    if (dx !== 0 || dy !== 0) {
-        const len = Math.hypot(dx, dy);
-        p.dirX = dx / len; p.dirY = dy / len;
-        let nextX = p.x + p.dirX * p.speed;
-        let nextY = p.y + p.dirY * p.speed;
-
-        if (!checkCollisionWithWalls(nextX, p.y)) {
-            p.x = Math.max(20, Math.min(WORLD_WIDTH - 20, nextX));
-        }
-        if (!checkCollisionWithWalls(p.x, nextY)) {
-            p.y = Math.max(20, Math.min(WORLD_HEIGHT - 20, nextY));
-        }
+    let damage = Math.max(1, Math.floor(currentEnemy.atk * (0.8 + Math.random() * 0.4)) - player.def);
+    if (isDefending) {
+        damage = Math.floor(damage / 2);
+        isDefending = false;
     }
 
-    enemies.forEach(e => {
-        if (e.isWandering) {
-            e.moveTimer--;
-            if (e.moveTimer <= 0) {
-                const angle = Math.random() * Math.PI * 2;
-                const spd = 0.8 + Math.random() * 1.2;
-                e.vx = Math.cos(angle) * spd;
-                e.vy = Math.sin(angle) * spd;
-                e.moveTimer = 40 + Math.floor(Math.random() * 80);
-            }
-
-            let nextX = e.x + e.vx;
-            let nextY = e.y + e.vy;
-
-            if (!isInsideStructure(nextX, e.y, 40)) {
-                e.x = nextX;
-            } else {
-                e.vx = -e.vx;
-            }
-
-            if (!isInsideStructure(e.x, nextY, 40)) {
-                e.y = nextY;
-            } else {
-                e.vy = -e.vy;
-            }
-
-            structures.forEach(st => {
-                const margin = 45;
-                if (e.x >= st.x - margin && e.x <= st.x + st.w + margin &&
-                    e.y >= st.y - margin && e.y <= st.y + st.h + margin) {
-                    if (e.x < st.x + st.w / 2) e.x = st.x - margin - 10;
-                    else e.x = st.x + st.w + margin + 10;
-                    e.vx = -e.vx;
-                    e.vy = -e.vy;
-                }
-            });
-
-            e.x = Math.max(100, Math.min(WORLD_WIDTH - 100, e.x));
-            e.y = Math.max(100, Math.min(WORLD_HEIGHT - 100, e.y));
-        }
-
-        if (Math.hypot(p.x - e.x, p.y - e.y) < p.size + e.size) {
-            if (e.isCadre) {
-                const subLeft = enemies.filter(sub => sub.isSubCadre && sub.parentCadre === e.isCadre).length;
-                if (subLeft > 0) {
-                    alert(`⚠️ 配下が残り ${subLeft} 人いる！ 配下を全滅させねば幹部【${e.name}】に挑むことはできない！`);
-                    p.y += 12;
-                    return;
-                }
-            }
-            if (e.isBoss && getDefeatedCadreCount() < 4) return;
-            startBattle(e);
-        }
-    });
-
-    camera.x = Math.max(0, Math.min(WORLD_WIDTH - camera.width, p.x - camera.width / 2));
-    camera.y = Math.max(0, Math.min(WORLD_HEIGHT - camera.height, p.y - camera.height / 2));
-}
-
-// ==========================================
-// 🎨 描画処理
-// ==========================================
-
-function drawTitleView() {
-    ctx.fillStyle = "#020617"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.save();
-    ctx.textAlign = "center";
-
-    const grad = ctx.createRadialGradient(400, 240, 50, 400, 240, 400);
-    grad.addColorStop(0, "rgba(30, 58, 138, 0.5)");
-    grad.addColorStop(1, "rgba(2, 6, 23, 1)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    ctx.fillStyle = "#fbbf24";
-    ctx.font = "bold 44px sans-serif";
-    ctx.shadowColor = "#f59e0b";
-    ctx.shadowBlur = 18;
-    ctx.fillText("ソラゴンクエスト", canvas.width / 2, 170);
-    ctx.shadowBlur = 0;
-
-    ctx.fillStyle = "#38bdf8";
-    ctx.font = "bold 18px sans-serif";
-    ctx.fillText("〜 結界に守られし村々と四天王の影 〜", canvas.width / 2, 220);
-
-    if (Math.floor(Date.now() / 500) % 2 === 0) {
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 20px sans-serif";
-        ctx.fillText("PRESS SPACE TO START", canvas.width / 2, 330);
-    }
-
-    ctx.fillStyle = "#94a3b8";
-    ctx.font = "13px sans-serif";
-    ctx.fillText("【操作】 移動: WASD / 矢印  |  決定: SPACE  |  セーブ: S  |  ロード: L", canvas.width / 2, 420);
-
-    ctx.restore();
-}
-
-function drawEndingView() {
-    ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    endingScrollY -= 0.8;
-
-    ctx.save();
-    ctx.textAlign = "center";
-
-    const credits = [
-        { text: "〜 FIN 〜", font: "bold 28px sans-serif", color: "#fbbf24", margin: 100 },
-        { text: "ソラゴンクエスト", font: "bold 38px sans-serif", color: "#38bdf8", margin: 70 },
-        { text: "四天王と魔王の脅威から世界は救われた", font: "16px sans-serif", color: "#e2e8f0", margin: 120 },
-
-        { text: "= STAFF CREDITS =", font: "bold 22px sans-serif", color: "#fbbf24", margin: 60 },
-        { text: "【 ディレクター & ゲームデザイン 】", font: "bold 14px sans-serif", color: "#94a3b8", margin: 25 },
-        { text: "サマースカイ", font: "bold 26px sans-serif", color: "#ffffff", margin: 80 },
-
-        { text: "【 AI 開発パートナー 】", font: "bold 14px sans-serif", color: "#94a3b8", margin: 25 },
-        { text: "Gemini", font: "bold 26px sans-serif", color: "#38bdf8", margin: 100 },
-
-        { text: "【 Special Thanks 】", font: "bold 14px sans-serif", color: "#94a3b8", margin: 25 },
-        { text: "すべての冒険者たち", font: "bold 20px sans-serif", color: "#4ade80", margin: 140 },
-
-        { text: "THANK YOU FOR PLAYING!", font: "bold 28px sans-serif", color: "#fbbf24", margin: 0 }
-    ];
-
-    let currentY = canvas.height + endingScrollY;
-
-    credits.forEach(item => {
-        if (currentY > -40 && currentY < canvas.height + 40) {
-            ctx.font = item.font;
-            ctx.fillStyle = item.color;
-            ctx.fillText(item.text, canvas.width / 2, currentY);
-        }
-        currentY += item.margin;
-    });
-
-    ctx.restore();
-
-    if (currentY < canvas.height / 2) {
-        if (Math.floor(Date.now() / 500) % 2 === 0) {
-            ctx.fillStyle = "#ffffff"; ctx.font = "bold 16px sans-serif"; ctx.textAlign = "center";
-            ctx.fillText("PRESS SPACE TO RETURN TO TITLE", canvas.width / 2, 440);
-        }
-    }
-}
-
-function drawDetailedPlayer(ctx, scale = 1) {
-    ctx.save();
-    ctx.scale(scale, scale);
-
-    ctx.fillStyle = "rgba(0,0,0,0.3)";
-    ctx.beginPath(); ctx.ellipse(0, 14, 12, 5, 0, 0, Math.PI * 2); ctx.fill();
-
-    ctx.fillStyle = "#dc2626";
-    ctx.beginPath(); ctx.moveTo(-10, -4); ctx.lineTo(-15, 16); ctx.lineTo(15, 16); ctx.lineTo(10, -4); ctx.closePath(); ctx.fill();
-
-    ctx.fillStyle = "#1e40af"; ctx.fillRect(-8, -5, 16, 18);
-    ctx.fillStyle = "#3b82f6"; ctx.beginPath(); ctx.arc(-11, 3, 6, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#94a3b8"; ctx.fillRect(9, -10, 3, 18);
-
-    ctx.fillStyle = "#ffedd5"; ctx.beginPath(); ctx.arc(0, -16, 10, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = "#0f172a"; ctx.beginPath(); ctx.arc(-3, -17, 1.5, 0, Math.PI * 2); ctx.arc(3, -17, 1.5, 0, Math.PI * 2); ctx.fill();
-    ctx.strokeStyle = "#b91c1c"; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.arc(0, -13, 3, 0, Math.PI); ctx.stroke();
-
-    ctx.fillStyle = "#f59e0b";
-    ctx.beginPath();
-    ctx.moveTo(-10, -18); ctx.lineTo(-6, -26); ctx.lineTo(-1, -20);
-    ctx.lineTo(4, -28); ctx.lineTo(9, -18); ctx.closePath(); ctx.fill();
-
-    ctx.restore();
-}
-
-function drawStructures() {
-    structures.forEach(st => {
-        ctx.fillStyle = st.color;
-        ctx.fillRect(st.x, st.y, st.w, st.h);
-
-        const wallThick = 14;
-        ctx.fillStyle = st.wallColor;
-
-        ctx.fillRect(st.x, st.y, st.w, wallThick);
-        ctx.fillRect(st.x, st.y, wallThick, st.h);
-        ctx.fillRect(st.x + st.w - wallThick, st.y, wallThick, st.h);
-
-        const leftSouthW = st.gateX - st.x;
-        const rightSouthX = st.gateX + st.gateW;
-        const rightSouthW = (st.x + st.w) - rightSouthX;
-
-        ctx.fillRect(st.x, st.y + st.h - wallThick, leftSouthW, wallThick);
-        ctx.fillRect(rightSouthX, st.y + st.h - wallThick, rightSouthW, wallThick);
-
-        ctx.fillStyle = "#fbbf24";
-        ctx.fillRect(st.gateX - 2, st.y + st.h - wallThick - 2, 4, wallThick + 4);
-        ctx.fillRect(st.gateX + st.gateW - 2, st.y + st.h - wallThick - 2, 4, wallThick + 4);
-
-        ctx.fillStyle = "#fff"; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "center";
-        ctx.fillText(`【 ${st.name} 】`, st.x + st.w / 2, st.y - 8);
-
-        if (st.isDemonCastle && getDefeatedCadreCount() < 4) {
-            ctx.fillStyle = "rgba(244, 63, 94, 0.4)";
-            ctx.fillRect(st.gateX, st.y + st.h - wallThick, st.gateW, wallThick);
-            ctx.fillStyle = "#f43f5e"; ctx.font = "bold 12px sans-serif";
-            ctx.fillText("🚫 結界閉鎖中", st.gateX + st.gateW / 2, st.y + st.h + 15);
-        }
-    });
-}
-
-function drawField() {
-    ctx.save();
-    ctx.translate(-camera.x, -camera.y);
-
-    ctx.fillStyle = "#15803d"; ctx.fillRect(0, 0, WORLD_WIDTH, WORLD_HEIGHT);
-
-    ctx.fillStyle = "rgba(6, 182, 212, 0.15)"; ctx.fillRect(2000, 0, 1600, 1000);
-    ctx.fillStyle = "rgba(239, 68, 68, 0.15)"; ctx.fillRect(0, 1000, 1600, 1000);
-    ctx.fillStyle = "rgba(234, 179, 8, 0.15)"; ctx.fillRect(2000, 1000, 1600, 1000);
-
-    ctx.strokeStyle = "#d97706"; ctx.lineWidth = 28; ctx.lineCap = "round";
-    ctx.beginPath();
-    ctx.moveTo(1800, 2000); ctx.lineTo(1800, 550);
-    ctx.moveTo(1800, 800); ctx.lineTo(400, 800); ctx.lineTo(400, 470);
-    ctx.moveTo(1800, 800); ctx.lineTo(3100, 800); ctx.lineTo(3100, 470);
-    ctx.moveTo(1800, 1800); ctx.lineTo(400, 1800); ctx.lineTo(400, 1470);
-    ctx.moveTo(1800, 1800); ctx.lineTo(3100, 1800); ctx.lineTo(3100, 1470);
-    ctx.stroke();
-
-    drawStructures();
-
-    npcs.forEach(npc => {
-        ctx.save(); ctx.translate(npc.x, npc.y);
-        drawNPC(ctx, npc.type);
-        ctx.restore();
-        ctx.fillStyle = "#fff"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "center";
-        ctx.fillText(npc.name, npc.x, npc.y - 20);
-    });
-
-    enemies.forEach(e => {
-        ctx.save(); ctx.translate(e.x, e.y);
-        drawCadre(ctx, e.type, e.isBoss ? 1.0 : e.isSubCadre ? 0.75 : 0.85);
-        ctx.restore();
-        ctx.fillStyle = "#fff"; ctx.font = "bold 11px sans-serif"; ctx.textAlign = "center";
-        ctx.fillText(e.name, e.x, e.y - (e.size || 20) - 6);
-    });
-
-    ctx.save(); ctx.translate(p.x, p.y);
-    drawDetailedPlayer(ctx, 0.95);
-    ctx.restore();
-
-    ctx.restore();
-}
-
-function drawNPC(ctx, type) {
-    if (type === "king") { ctx.fillStyle = "#eab308"; }
-    else if (type === "merchant") { ctx.fillStyle = "#0284c7"; }
-    else if (type === "inn") { ctx.fillStyle = "#16a34a"; }
-    else { ctx.fillStyle = "#ec4899"; }
-    ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI*2); ctx.fill();
-    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-3, -2, 2.5, 0, Math.PI*2); ctx.arc(3, -2, 2.5, 0, Math.PI*2); ctx.fill();
-}
-
-function drawCadre(ctx, type, scale = 1) {
-    ctx.save();
-    ctx.scale(scale, scale);
-
-    if (type === "slime") {
-        ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
-        ctx.beginPath(); ctx.ellipse(0, 12, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
-
-        ctx.fillStyle = "#06b6d4";
-        ctx.beginPath();
-        ctx.moveTo(0, -16);
-        ctx.bezierCurveTo(16, -16, 20, 12, 16, 14);
-        ctx.bezierCurveTo(8, 16, -8, 16, -16, 14);
-        ctx.bezierCurveTo(-20, 12, -16, -16, 0, -16);
-        ctx.fill();
-
-        ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
-        ctx.beginPath(); ctx.arc(-6, -6, 4, 0, Math.PI * 2); ctx.fill();
-
-        ctx.fillStyle = "#0f172a";
-        ctx.beginPath(); ctx.arc(-5, 2, 2.5, 0, Math.PI * 2); ctx.arc(5, 2, 2.5, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#fff";
-        ctx.beginPath(); ctx.arc(-6, 1, 1, 0, Math.PI * 2); ctx.arc(4, 1, 1, 0, Math.PI * 2); ctx.fill();
-
-        ctx.strokeStyle = "#0891b2"; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.arc(0, 4, 3, 0.1, Math.PI - 0.1); ctx.stroke();
-
-    } else if (type === "goblin") {
-        ctx.fillStyle = "#15803d";
-        ctx.beginPath(); ctx.moveTo(-8, -4); ctx.lineTo(-20, -8); ctx.lineTo(-10, 4); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(8, -4); ctx.lineTo(20, -8); ctx.lineTo(10, 4); ctx.fill();
-
-        ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
-
-        ctx.fillStyle = "#ef4444";
-        ctx.beginPath(); ctx.arc(-4, -2, 3, 0, Math.PI * 2); ctx.arc(4, -2, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#fbbf24";
-        ctx.beginPath(); ctx.arc(-4, -2, 1, 0, Math.PI * 2); ctx.arc(4, -2, 1, 0, Math.PI * 2); ctx.fill();
-
-        ctx.strokeStyle = "#052e16"; ctx.lineWidth = 1.5;
-        ctx.beginPath(); ctx.moveTo(-6, 5); ctx.lineTo(6, 5); ctx.stroke();
-        ctx.fillStyle = "#fff";
-        ctx.beginPath(); ctx.moveTo(-4, 5); ctx.lineTo(-3, 2); ctx.lineTo(-2, 5); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(2, 5); ctx.lineTo(3, 2); ctx.lineTo(4, 5); ctx.fill();
-
-    } else if (type === "oak") {
-        ctx.fillStyle = "#78350f"; ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#451a03"; ctx.fillRect(-12, -8, 24, 6);
-
-        ctx.fillStyle = "#f87171";
-        ctx.beginPath(); ctx.arc(-6, -2, 2.5, 0, Math.PI * 2); ctx.arc(6, -2, 2.5, 0, Math.PI * 2); ctx.fill();
-
-        ctx.fillStyle = "#fef3c7";
-        ctx.beginPath(); ctx.moveTo(-8, 8); ctx.lineTo(-6, 0); ctx.lineTo(-4, 8); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(4, 8); ctx.lineTo(6, 0); ctx.lineTo(8, 8); ctx.fill();
-
-    } else if (type === "golem") {
-        ctx.fillStyle = "#334155";
-        ctx.fillRect(-16, -16, 32, 32);
-        ctx.strokeStyle = "#64748b"; ctx.lineWidth = 2;
-        ctx.strokeRect(-16, -16, 32, 32);
-
-        ctx.beginPath(); ctx.moveTo(-10, -10); ctx.lineTo(-2, -4); ctx.lineTo(-6, 6); ctx.stroke();
-
-        ctx.fillStyle = "#38bdf8"; ctx.shadowColor = "#38bdf8"; ctx.shadowBlur = 8;
-        ctx.fillRect(-8, -6, 16, 4);
-        ctx.shadowBlur = 0;
-
-    } else if (type.startsWith("sub_")) {
-        let color = "#94a3b8";
-        if (type === "sub_wind") color = "#10b981";
-        if (type === "sub_water") color = "#06b6d4";
-        if (type === "sub_fire") color = "#f97316";
-        if (type === "sub_thunder") color = "#eab308";
-
-        ctx.fillStyle = "#1e293b"; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = color; ctx.fillRect(-12, -4, 24, 6);
-        ctx.fillStyle = "#fff"; ctx.fillRect(-3, -2, 6, 2);
-
-    } else if (type === "cadre_wind") {
-        ctx.fillStyle = "#059669";
-        ctx.beginPath(); ctx.moveTo(0, -32); ctx.lineTo(-18, -10); ctx.lineTo(18, -10); ctx.closePath(); ctx.fill();
-
-        ctx.fillStyle = "#10b981"; ctx.beginPath(); ctx.ellipse(0, 0, 18, 22, 0, 0, Math.PI * 2); ctx.fill();
-
-        ctx.fillStyle = "#a7f3d0";
-        ctx.beginPath(); ctx.moveTo(-16, -8); ctx.lineTo(-28, -20); ctx.lineTo(-14, -2); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(16, -8); ctx.lineTo(28, -20); ctx.lineTo(14, -2); ctx.fill();
-
-        ctx.fillStyle = "#064e3b"; ctx.fillRect(-10, -4, 20, 6);
-        ctx.fillStyle = "#34d399"; ctx.beginPath(); ctx.arc(-5, -1, 2, 0, Math.PI * 2); ctx.arc(5, -1, 2, 0, Math.PI * 2); ctx.fill();
-
-    } else if (type === "cadre_water") {
-        ctx.fillStyle = "#38bdf8";
-        ctx.beginPath(); ctx.moveTo(-20, 10); ctx.lineTo(-22, -22); ctx.lineTo(0, -12); ctx.lineTo(22, -22); ctx.lineTo(20, 10); ctx.fill();
-
-        ctx.fillStyle = "#bae6fd"; ctx.beginPath(); ctx.arc(0, -2, 15, 0, Math.PI * 2); ctx.fill();
-
-        ctx.fillStyle = "#0284c7";
-        ctx.beginPath(); ctx.moveTo(-10, -14); ctx.lineTo(0, -26); ctx.lineTo(10, -14); ctx.fill();
-
-        ctx.fillStyle = "#0369a1"; ctx.beginPath(); ctx.arc(-5, -2, 2.5, 0, Math.PI * 2); ctx.arc(5, -2, 2.5, 0, Math.PI * 2); ctx.fill();
-
-    } else if (type === "cadre_fire") {
-        ctx.fillStyle = "#ef4444";
-        ctx.beginPath();
-        ctx.moveTo(0, -36); ctx.lineTo(12, -18); ctx.lineTo(22, -30); ctx.lineTo(16, 0);
-        ctx.lineTo(-16, 0); ctx.lineTo(-22, -30); ctx.lineTo(-12, -18); ctx.closePath(); ctx.fill();
-
-        ctx.fillStyle = "#7f1d1d"; ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill();
-
-        ctx.fillStyle = "#18181b";
-        ctx.beginPath(); ctx.moveTo(-12, -10); ctx.lineTo(-26, -26); ctx.lineTo(-8, -16); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(12, -10); ctx.lineTo(26, -26); ctx.lineTo(8, -16); ctx.fill();
-
-        ctx.fillStyle = "#fbbf24"; ctx.beginPath(); ctx.arc(-6, -2, 3, 0, Math.PI * 2); ctx.arc(6, -2, 3, 0, Math.PI * 2); ctx.fill();
-
-    } else if (type === "cadre_thunder") {
-        ctx.fillStyle = "#eab308";
-        ctx.beginPath(); ctx.moveTo(-16, -14); ctx.lineTo(-8, -32); ctx.lineTo(0, -18); ctx.lineTo(8, -32); ctx.lineTo(16, -14); ctx.fill();
-
-        ctx.fillStyle = "#713f12"; ctx.beginPath(); ctx.arc(0, -2, 17, 0, Math.PI * 2); ctx.fill();
-
-        ctx.fillStyle = "#f8fafc";
-        ctx.beginPath(); ctx.moveTo(-14, 2); ctx.lineTo(0, 22); ctx.lineTo(14, 2); ctx.fill();
-
-        ctx.fillStyle = "#fef08a"; ctx.shadowColor = "#fef08a"; ctx.shadowBlur = 6;
-        ctx.beginPath(); ctx.arc(-5, -4, 3, 0, Math.PI * 2); ctx.arc(5, -4, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.shadowBlur = 0;
-
-    } else if (type === "lucifel") {
-        ctx.fillStyle = "rgba(88, 28, 135, 0.4)"; ctx.shadowColor = "#a855f7"; ctx.shadowBlur = 20;
-        ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2); ctx.fill();
-        ctx.shadowBlur = 0;
-
-        ctx.fillStyle = "#2e1065"; ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI * 2); ctx.fill();
-
-        ctx.fillStyle = "#0f172a";
-        ctx.beginPath(); ctx.moveTo(-15, -15); ctx.lineTo(-38, -38); ctx.lineTo(-8, -24); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(15, -15); ctx.lineTo(38, -38); ctx.lineTo(8, -24); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(-20, -5); ctx.lineTo(-44, -18); ctx.lineTo(-16, -12); ctx.fill();
-        ctx.beginPath(); ctx.moveTo(20, -5); ctx.lineTo(44, -18); ctx.lineTo(16, -12); ctx.fill();
-
-        ctx.fillStyle = "#dc2626"; ctx.shadowColor = "#ef4444"; ctx.shadowBlur = 8;
-        ctx.beginPath(); ctx.arc(-10, -8, 3, 0, Math.PI * 2); ctx.arc(10, -8, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(-14, 2, 2.5, 0, Math.PI * 2); ctx.arc(14, 2, 2.5, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(-6, 4, 2.5, 0, Math.PI * 2); ctx.arc(6, 4, 2.5, 0, Math.PI * 2); ctx.fill();
-
-        ctx.fillStyle = "#fbbf24";
-        ctx.beginPath(); ctx.arc(0, -14, 4, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#000";
-        ctx.beginPath(); ctx.arc(0, -14, 1.5, 0, Math.PI * 2); ctx.fill();
-        ctx.shadowBlur = 0;
-    }
-
-    ctx.restore();
-}
-
-function drawShopView() {
-    ctx.fillStyle = "#0f172a"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#fbbf24"; ctx.font = "bold 20px sans-serif"; ctx.textAlign = "center";
-    ctx.fillText(currentShopType === "WEAPON" ? "⚔️ 王立鍛冶屋 🛒" : "🧪 道具屋 🛒", canvas.width / 2, 50);
-
-    ctx.fillStyle = "#94a3b8"; ctx.font = "14px sans-serif";
-    ctx.fillText(`所持金: ${p.gold} G   [W/S] 選択  [SPACE] 購入・装備  [ESC] 戻る`, canvas.width / 2, 85);
-
-    if (currentShopType === "WEAPON") {
-        const weaponKeys = Object.keys(WEAPONS);
-        weaponKeys.forEach((key, idx) => {
-            const w = WEAPONS[key];
-            const isOwned = p.inventory.includes(key);
-            const isEquipped = p.equippedWeapon === key;
-
-            const y = 125 + idx * 62;
-            ctx.fillStyle = (idx === shopSelection) ? "#1e293b" : "#020617";
-            ctx.strokeStyle = (idx === shopSelection) ? "#fbbf24" : "#0284c7";
-            ctx.lineWidth = 2;
-            ctx.fillRect(100, y, 600, 52); ctx.strokeRect(100, y, 600, 52);
-
-            ctx.fillStyle = isEquipped ? "#4ade80" : isOwned ? "#38bdf8" : "#fff";
-            ctx.font = "bold 16px sans-serif"; ctx.textAlign = "left";
-            ctx.fillText(`${w.name} (攻撃+${w.atk})`, 120, y + 32);
-
-            ctx.fillStyle = "#fbbf24"; ctx.textAlign = "right";
-            ctx.fillText(isEquipped ? "【装備中】" : isOwned ? "【所持】" : `${w.price} G`, 680, y + 32);
-        });
+    player.hp -= damage;
+    battleLog = `${currentEnemy.name} の攻撃！ ${damage} のダメージを受けた！`;
+
+    if (player.hp <= 0) {
+        player.hp = 0;
+        alert("全滅しました... 街で復活します。");
+        player.hp = player.maxHp;
+        player.x = 400;
+        player.y = 400;
+        gameState = STATE_FIELD;
     } else {
-        ctx.fillStyle = "#1e293b"; ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 2;
-        ctx.fillRect(100, 150, 600, 80); ctx.strokeRect(100, 150, 600, 80);
-        ctx.fillStyle = "#fff"; ctx.font = "bold 18px sans-serif"; ctx.textAlign = "left";
-        ctx.fillText("🧪 回復の薬 (HP 180回復)", 130, 195);
-        ctx.fillStyle = "#fbbf24"; ctx.textAlign = "right";
-        ctx.fillText("80 G", 670, 195);
+        isPlayerTurn = true;
     }
 }
 
-function drawDialogueView() {
-    ctx.fillStyle = "#0f172a"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "rgba(15, 23, 42, 0.95)"; ctx.strokeStyle = "#fbbf24"; ctx.lineWidth = 3;
-    ctx.fillRect(40, 310, 720, 130); ctx.strokeRect(40, 310, 720, 130);
+function winBattle() {
+    player.exp += currentEnemy.exp;
+    player.gold += currentEnemy.gold;
+    
+    let msg = `勝利した！ ${currentEnemy.exp}EXP と ${currentEnemy.gold}G を獲得！`;
 
-    ctx.fillStyle = "#fbbf24"; ctx.font = "bold 18px sans-serif"; ctx.textAlign = "left";
-    ctx.fillText(`【 ${currentTarget.name} 】`, 60, 345);
-    ctx.fillStyle = "#fff"; ctx.font = "15px sans-serif";
-    ctx.fillText(currentTarget.text, 60, 385);
-}
-
-function drawBattleView() {
-    ctx.fillStyle = "#020617"; ctx.fillRect(0, 0, canvas.width, 220);
-    ctx.fillStyle = "#14532d";
-    ctx.beginPath(); ctx.moveTo(80, 170); ctx.lineTo(720, 170); ctx.lineTo(800, 340); ctx.lineTo(0, 340); ctx.closePath(); ctx.fill();
-
-    ctx.save();
-    const enemyX = 560 + Math.sin(battleAnimTimer * 2) * 5;
-    const enemyY = 175;
-    ctx.translate(enemyX, enemyY);
-    drawCadre(ctx, currentTarget.type, currentTarget.isBoss ? 2.2 : currentTarget.isSubCadre ? 1.4 : 1.7);
-    ctx.restore();
-
-    ctx.save();
-    const heroX = 220, heroY = 270;
-    ctx.translate(heroX, heroY);
-    drawDetailedPlayer(ctx, 1.8);
-    ctx.restore();
-
-    if (activeEffect === "SLASH") {
-        ctx.strokeStyle = "#38bdf8"; ctx.lineWidth = 6;
-        ctx.beginPath(); ctx.moveTo(enemyX - 40, enemyY - 40); ctx.lineTo(enemyX + 40, enemyY + 40); ctx.stroke();
-    } else if (activeEffect === "FIRE") {
-        ctx.fillStyle = "rgba(249, 115, 22, 0.6)";
-        ctx.beginPath(); ctx.arc(enemyX, enemyY, 65, 0, Math.PI * 2); ctx.fill();
-    } else if (activeEffect === "HEAL") {
-        ctx.fillStyle = "rgba(74, 222, 128, 0.5)";
-        ctx.beginPath(); ctx.arc(heroX, heroY - 20, 55, 0, Math.PI * 2); ctx.fill();
+    if (!currentEnemy.isMob) {
+        if (currentEnemy === demonKing) {
+            gameState = STATE_ENDING;
+            return;
+        } else {
+            currentEnemy.defeated = true;
+            player.defeatedBosses++;
+            msg += ` 四天王を討伐した！ (残り: ${4 - player.defeatedBosses})`;
+        }
     }
 
-    ctx.fillStyle = "rgba(15, 23, 42, 0.85)"; ctx.fillRect(40, 20, 280, 60);
-    ctx.fillStyle = "#fff"; ctx.font = "bold 15px sans-serif"; ctx.textAlign = "left";
-    ctx.fillText(currentTarget.name, 55, 42);
-    ctx.fillStyle = "#1e293b"; ctx.fillRect(55, 52, 240, 12);
-    ctx.fillStyle = "#ef4444"; ctx.fillRect(55, 52, 240 * Math.max(0, currentTarget.hp / currentTarget.maxHp), 12);
-
-    ctx.fillStyle = "rgba(15, 23, 42, 0.85)"; ctx.fillRect(480, 210, 280, 65);
-    ctx.fillStyle = "#fbbf24"; ctx.font = "bold 15px sans-serif";
-    ctx.fillText(`勇者 (LV ${p.lv})`, 495, 232);
-    ctx.fillStyle = "#1e293b"; ctx.fillRect(495, 242, 250, 10);
-    ctx.fillStyle = "#4ade80"; ctx.fillRect(495, 242, 250 * Math.max(0, p.hp / p.maxHp), 10);
-    ctx.fillStyle = "#38bdf8"; ctx.font = "bold 12px sans-serif";
-    ctx.fillText(`HP: ${p.hp}/${p.maxHp}  MP: ${p.mp}/${p.maxMp}`, 495, 266);
-
-    ctx.fillStyle = "rgba(15, 23, 42, 0.95)"; ctx.fillRect(30, 285, 740, 45);
-    ctx.fillStyle = "#38bdf8"; ctx.font = "14px sans-serif"; ctx.fillText(battleLog, 45, 312);
-
-    ctx.fillStyle = "rgba(15, 23, 42, 0.95)"; ctx.fillRect(30, 340, 740, 125);
-    if (battleMenuMode === "MAIN") {
-        drawMenuButton("1. 武器攻撃", 60, 360, 320, 40, "#38bdf8");
-        drawMenuButton("2. 武器換装", 420, 360, 320, 40, "#fbbf24");
-        drawMenuButton("3. 魔法・道具", 60, 410, 320, 40, "#a855f7");
-        drawMenuButton("4. 防御", 420, 410, 320, 40, "#4ade80");
-    } else if (battleMenuMode === "WEAPON_SELECT") {
-        const inv = p.inventory;
-        drawMenuButton(`1. ${WEAPONS[inv[0]] ? WEAPONS[inv[0]].name : '-'}`, 60, 360, 320, 40, "#38bdf8");
-        drawMenuButton(`2. ${WEAPONS[inv[1]] ? WEAPONS[inv[1]].name : '-'}`, 420, 360, 320, 40, "#38bdf8");
-        drawMenuButton(`3. ${WEAPONS[inv[2]] ? WEAPONS[inv[2]].name : '-'}`, 60, 410, 320, 40, "#38bdf8");
-        drawMenuButton(`4. ${WEAPONS[inv[3]] ? WEAPONS[inv[3]].name : '-'}`, 420, 410, 320, 40, "#38bdf8");
-    } else if (battleMenuMode === "SKILL_SELECT") {
-        drawMenuButton("1. 回復祈り (15 MP)", 60, 360, 320, 40, "#a855f7");
-        drawMenuButton("2. 爆炎呪文 (24 MP)", 420, 360, 320, 40, "#a855f7");
-        drawMenuButton(`3. 回復の薬 (${p.potions}個)`, 60, 410, 320, 40, "#4ade80");
+    // レベルアップ判定
+    if (player.exp >= player.nextExp) {
+        player.level++;
+        player.maxHp += 15;
+        player.hp = player.maxHp;
+        player.atk += 4;
+        player.def += 2;
+        player.nextExp = Math.floor(player.nextExp * 1.5);
+        msg += ` レベルアップ！ Lv.${player.level} になった！`;
     }
+
+    showMessage([msg]);
 }
 
-function drawMenuButton(text, x, y, w, h, color) {
-    ctx.fillStyle = "#1e293b"; ctx.strokeStyle = color; ctx.lineWidth = 2;
-    ctx.fillRect(x, y, w, h); ctx.strokeRect(x, y, w, h);
-    ctx.fillStyle = color; ctx.font = "bold 14px sans-serif"; ctx.textAlign = "left";
-    ctx.fillText(text, x + 15, y + 25);
-}
-
+// --- 描画処理 ---
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (gameState === "TITLE") drawTitleView();
-    else if (gameState === "FIELD") drawField();
-    else if (gameState === "DIALOGUE" || gameState === "INN") drawDialogueView();
-    else if (gameState === "SHOP") drawShopView();
-    else if (gameState === "BATTLE") drawBattleView();
-    else if (gameState === "ENDING") drawEndingView();
+
+    if (gameState === STATE_TITLE) {
+        drawTitle();
+        return;
+    }
+
+    if (gameState === STATE_ENDING) {
+        drawEnding();
+        return;
+    }
+
+    // カメラ座標計算（プレイヤー追従）
+    const cameraX = player.x - canvas.width / 2;
+    const cameraY = player.y - canvas.height / 2;
+
+    ctx.save();
+    ctx.translate(-cameraX, -cameraY);
+
+    // フィールド背景グリッド描画
+    ctx.strokeStyle = "#222";
+    for (let x = 0; x < MAP_WIDTH; x += TILE_SIZE) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, MAP_HEIGHT);
+        ctx.stroke();
+    }
+    for (let y = 0; y < MAP_HEIGHT; y += TILE_SIZE) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(MAP_WIDTH, y);
+        ctx.stroke();
+    }
+
+    // 拠点（宿屋・道具屋）描画
+    ctx.fillStyle = "#00aaaa";
+    ctx.fillRect(inn.x - 20, inn.y - 20, 40, 40);
+    ctx.fillStyle = "#fff";
+    ctx.fillText("宿屋", inn.x - 12, inn.y + 5);
+
+    ctx.fillStyle = "#aa00aa";
+    ctx.fillRect(shop.x - 20, shop.y - 20, 40, 40);
+    ctx.fillStyle = "#fff";
+    ctx.fillText("道具屋", shop.x - 18, shop.y + 5);
+
+    // 魔王城＆結界の描画
+    ctx.fillStyle = "#444";
+    ctx.fillRect(demonKing.x - 40, demonKing.y - 40, 80, 80);
+
+    if (player.defeatedBosses < 4) {
+        // 赤く光る結界
+        ctx.fillStyle = "rgba(255, 0, 0, 0.5)";
+        ctx.fillRect(barrier.x, barrier.y, barrier.width, barrier.height);
+        ctx.fillStyle = "#ffaaaa";
+        ctx.fillText("【封印の結界】", barrier.x + 10, barrier.y + 25);
+    }
+
+    // 四天王描画
+    bosses.forEach(boss => {
+        if (!boss.defeated) {
+            ctx.fillStyle = boss.color;
+            ctx.beginPath();
+            ctx.arc(boss.x, boss.y, 18, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = "#fff";
+            ctx.fillText(boss.name, boss.x - 40, boss.y - 25);
+        }
+    });
+
+    // 魔王描画
+    ctx.fillStyle = demonKing.color;
+    ctx.beginPath();
+    ctx.arc(demonKing.x, demonKing.y, 25, 0, Math.PI * 2);
+    ctx.fill();
+
+    // プレイヤー描画
+    ctx.fillStyle = "#00ff00";
+    ctx.fillRect(player.x, player.y, player.size, player.size);
+
+    ctx.restore();
+
+    // UIオーバーレイ (画面固定)
+    drawUI();
+
+    // 戦闘画面オーバーレイ
+    if (gameState === STATE_BATTLE) {
+        drawBattleScreen();
+    }
+
+    // メッセージウィンドウ表示
+    if (gameState === STATE_TALK) {
+        drawMessageBox();
+    }
 }
 
+function drawTitle() {
+    ctx.fillStyle = "#fff";
+    ctx.font = "32px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("ソラゴンクエスト", canvas.width / 2, 200);
+
+    ctx.font = "18px monospace";
+    ctx.fillText("PRESS SPACE TO START", canvas.width / 2, 350);
+    ctx.fillText("四天王を倒し、魔王城の結界を解いて世界を救え！", canvas.width / 2, 420);
+}
+
+function drawUI() {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+    ctx.fillRect(10, 10, 780, 40);
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "14px monospace";
+    ctx.textAlign = "left";
+    const statusText = `Lv:${player.level}  HP:${player.hp}/${player.maxHp}  MP:${player.mp}/${player.maxMp}  ATK:${player.atk}+${weapons[player.weaponIndex].atk}  DEF:${player.def}  G:${player.gold}  薬:${player.potions}  四天王撃破:${player.defeatedBosses}/4`;
+    ctx.fillText(statusText, 20, 35);
+}
+
+function drawMessageBox() {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.85)";
+    ctx.strokeStyle = "#fff";
+    ctx.lineWidth = 3;
+    ctx.fillRect(50, 420, 700, 140);
+    ctx.strokeRect(50, 420, 700, 140);
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "16px monospace";
+    ctx.fillText(messageQueue[messageIndex] || "", 80, 470);
+
+    ctx.font = "12px monospace";
+    ctx.fillStyle = "#aaa";
+    ctx.fillText("[SPACEキーで進む]", 620, 540);
+}
+
+function drawBattleScreen() {
+    ctx.fillStyle = "rgba(10, 10, 25, 0.95)";
+    ctx.fillRect(50, 50, 700, 500);
+
+    // 敵表示
+    ctx.fillStyle = currentEnemy.color;
+    ctx.beginPath();
+    ctx.arc(400, 180, 40, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "20px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(currentEnemy.name, 400, 110);
+    ctx.fillText(`HP: ${currentEnemy.hp} / ${currentEnemy.maxHp}`, 400, 250);
+
+    // バトルログ
+    ctx.font = "16px monospace";
+    ctx.fillText(battleLog, 400, 310);
+
+    // コマンド一覧
+    if (isPlayerTurn) {
+        ctx.textAlign = "left";
+        ctx.fillText("1. 攻撃", 120, 400);
+        ctx.fillText(`2. 武器換装 (${weapons[player.weaponIndex].name})`, 120, 440);
+        ctx.fillText(`3. 魔法/道具 (薬:${player.potions}個/MP8)`, 420, 400);
+        ctx.fillText("4. 防御", 420, 440);
+    }
+}
+
+function drawEnding() {
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = "#ffd700";
+    ctx.font = "28px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("〜 GAME CLEAR 〜", canvas.width / 2, 200);
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "16px monospace";
+    ctx.fillText("魔王ルシフェルは滅び、世界に平和が戻った！", canvas.width / 2, 280);
+    ctx.fillText("あなたの勇気ある行動は永遠に称えられるだろう。", canvas.width / 2, 320);
+    ctx.fillText("THANK YOU FOR PLAYING!", canvas.width / 2, 420);
+}
+
+// --- メインループ ---
 function gameLoop() {
     update();
     draw();
     requestAnimationFrame(gameLoop);
 }
 
-updateUI();
 gameLoop();
-
 </script>
 </body>
 </html>
