@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ルミナスの勇者 - Grand World Edition</title>
+    <title>ソラゴンクエスト</title>
     <style>
         * {
             box-sizing: border-box;
@@ -91,7 +91,7 @@
 <body>
 
 <div id="game-wrapper">
-    <h1>⚔️ ルミナスの勇者 - 結界に守られし村々 ⚔️</h1>
+    <h1>⚔️ ソラゴンクエスト ⚔️</h1>
     <div id="canvas-container">
         <canvas id="gameCanvas" width="800" height="480"></canvas>
     </div>
@@ -106,7 +106,7 @@
         <div class="stat-group">
             <div>四天王撃破: <span id="ui-cadre" class="boss-flag">0 / 4</span></div>
             <div>装備: <span id="ui-weapon" class="val" style="color:#fbbf24">鋼のロングソード</span></div>
-            <div>状態: <span id="ui-state" class="val" style="color:#4ade80">フィールド探索</span></div>
+            <div>状態: <span id="ui-state" class="val" style="color:#fbbf24">タイトル画面</span></div>
         </div>
     </div>
     <div id="controls-hint">
@@ -118,7 +118,8 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 
-let gameState = "FIELD"; // "FIELD", "DIALOGUE", "BATTLE", "SHOP", "INN"
+let gameState = "TITLE"; // "TITLE", "FIELD", "DIALOGUE", "BATTLE", "SHOP", "INN", "ENDING"
+let endingScrollY = 0;
 
 // --- マップ設定 (3600 x 2800) ---
 const WORLD_WIDTH = 3600;
@@ -135,16 +136,20 @@ const WEAPONS = {
 };
 
 // プレイヤーデータ
-const p = {
-    x: 1800, y: 2350, size: 16, speed: 4.5, dirX: 0, dirY: 1,
-    hp: 120, maxHp: 120, mp: 50, maxMp: 50,
-    baseAtk: 15, gold: 250, lv: 1, exp: 0, expToNext: 50,
-    potions: 3,
-    inventory: ["sword"],
-    equippedWeapon: "sword",
-    isGuarding: false,
-    cadreDefeated: { wind: false, water: false, fire: false, thunder: false }
-};
+let p = {};
+
+function initPlayer() {
+    p = {
+        x: 1800, y: 2350, size: 16, speed: 4.5, dirX: 0, dirY: 1,
+        hp: 120, maxHp: 120, mp: 50, maxMp: 50,
+        baseAtk: 15, gold: 250, lv: 1, exp: 0, expToNext: 50,
+        potions: 3,
+        inventory: ["sword"],
+        equippedWeapon: "sword",
+        isGuarding: false,
+        cadreDefeated: { wind: false, water: false, fire: false, thunder: false }
+    };
+}
 
 let currentTarget = null;
 let currentShopType = null;
@@ -156,26 +161,20 @@ let activeEffect = null;
 
 // --- 🏰 構造物（城・村）と入口ゲートの定義 ---
 const structures = [
-    // 中央南：始まりの王国ルミナス
     { id: "luminous", name: "始まりの王国ルミナス", x: 1400, y: 2000, w: 800, h: 500, gateX: 1740, gateW: 120, color: "#334155", wallColor: "#64748b", isCastle: true },
 
-    // 北西：風のエリア
     { id: "wind_village", name: "風の村ゼフィリア", x: 250, y: 650, w: 350, h: 280, gateX: 400, gateW: 80, color: "#14532d", wallColor: "#22c55e" },
     { id: "wind_castle", name: "疾風の魔城", x: 250, y: 150, w: 350, h: 320, gateX: 400, gateW: 80, color: "#064e3b", wallColor: "#10b981", isCastle: true },
 
-    // 北東：氷のエリア
     { id: "water_village", name: "氷の村アクアリス", x: 2950, y: 650, w: 350, h: 280, gateX: 3100, gateW: 80, color: "#0c4a6e", wallColor: "#38bdf8" },
     { id: "water_castle", name: "氷華の魔城", x: 2950, y: 150, w: 350, h: 320, gateX: 3100, gateW: 80, color: "#164e63", wallColor: "#06b6d4", isCastle: true },
 
-    // 南西：炎のエリア
     { id: "fire_village", name: "炎の村ヴァルカン", x: 250, y: 1650, w: 350, h: 280, gateX: 400, gateW: 80, color: "#7f1d1d", wallColor: "#ef4444" },
     { id: "fire_castle", name: "業火の魔城", x: 250, y: 1150, w: 350, h: 320, gateX: 400, gateW: 80, color: "#450a0a", wallColor: "#dc2626", isCastle: true },
 
-    // 南東：雷のエリア
     { id: "thunder_village", name: "雷の村ボルテックス", x: 2950, y: 1650, w: 350, h: 280, gateX: 3100, gateW: 80, color: "#713f12", wallColor: "#eab308" },
     { id: "thunder_castle", name: "雷鳴の魔城", x: 2950, y: 1150, w: 350, h: 320, gateX: 3100, gateW: 80, color: "#422006", wallColor: "#ca8a04", isCastle: true },
 
-    // 中央北：魔王城
     { id: "demon_castle", name: "終焉の魔王城", x: 1550, y: 150, w: 500, h: 400, gateX: 1750, gateW: 100, color: "#2e1065", wallColor: "#a855f7", isDemonCastle: true }
 ];
 
@@ -208,35 +207,40 @@ const npcs = [
     { x: 3200, y: 1800, name: "雷の村宿屋", type: "inn", role: "INN", text: "1泊 40G で疲れを癒やしましょう。" }
 ];
 
-// エネミー（四天王 + 幹部の配下3人ずつ + 魔王）
-let enemies = [
-    // 🌪️ 疾風の魔城 (北西)
-    { x: 425, y: 240, name: "【疾風将】ゼファー", hp: 380, maxHp: 380, atk: 34, exp: 280, gold: 350, type: "cadre_wind", size: 36, isCadre: "wind" },
-    { x: 330, y: 350, name: "疾風の護衛・アスカ", hp: 130, maxHp: 130, atk: 20, exp: 60, gold: 80, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
-    { x: 425, y: 380, name: "疾風の護衛・フウガ", hp: 130, maxHp: 130, atk: 20, exp: 60, gold: 80, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
-    { x: 520, y: 350, name: "疾風の護衛・ハヤテ", hp: 140, maxHp: 140, atk: 22, exp: 70, gold: 90, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
+// エネミーデータの初期化関数
+let enemies = [];
+function initEnemies() {
+    enemies = [
+        // 🌪️ 疾風の魔城
+        { x: 425, y: 240, name: "【疾風将】ゼファー", hp: 380, maxHp: 380, atk: 34, exp: 280, gold: 350, type: "cadre_wind", size: 36, isCadre: "wind" },
+        { x: 330, y: 350, name: "疾風の護衛・アスカ", hp: 130, maxHp: 130, atk: 20, exp: 60, gold: 80, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
+        { x: 425, y: 380, name: "疾風の護衛・フウガ", hp: 130, maxHp: 130, atk: 20, exp: 60, gold: 80, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
+        { x: 520, y: 350, name: "疾風の護衛・ハヤテ", hp: 140, maxHp: 140, atk: 22, exp: 70, gold: 90, type: "sub_wind", size: 24, isSubCadre: true, parentCadre: "wind" },
 
-    // ❄️ 氷華の魔城 (北東)
-    { x: 3125, y: 240, name: "【氷華后】アクアリア", hp: 550, maxHp: 550, atk: 45, exp: 450, gold: 500, type: "cadre_water", size: 36, isCadre: "water" },
-    { x: 3030, y: 350, name: "氷華の近衛・シグラ", hp: 180, maxHp: 180, atk: 28, exp: 110, gold: 120, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
-    { x: 3125, y: 380, name: "氷華の近衛・ヒョウガ", hp: 180, maxHp: 180, atk: 28, exp: 110, gold: 120, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
-    { x: 3220, y: 350, name: "氷華の近衛・フロスト", hp: 200, maxHp: 200, atk: 30, exp: 130, gold: 140, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
+        // ❄️ 氷華の魔城
+        { x: 3125, y: 240, name: "【氷華后】アクアリア", hp: 550, maxHp: 550, atk: 45, exp: 450, gold: 500, type: "cadre_water", size: 36, isCadre: "water" },
+        { x: 3030, y: 350, name: "氷華の近衛・シグラ", hp: 180, maxHp: 180, atk: 28, exp: 110, gold: 120, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
+        { x: 3125, y: 380, name: "氷華の近衛・ヒョウガ", hp: 180, maxHp: 180, atk: 28, exp: 110, gold: 120, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
+        { x: 3220, y: 350, name: "氷華の近衛・フロスト", hp: 200, maxHp: 200, atk: 30, exp: 130, gold: 140, type: "sub_water", size: 24, isSubCadre: true, parentCadre: "water" },
 
-    // 🔥 業火の魔城 (南西)
-    { x: 425, y: 1240, name: "【業火帝】ブレイズ", hp: 750, maxHp: 750, atk: 58, exp: 700, gold: 700, type: "cadre_fire", size: 38, isCadre: "fire" },
-    { x: 330, y: 1350, name: "業火の突撃兵・プロメノ", hp: 250, maxHp: 250, atk: 38, exp: 170, gold: 180, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
-    { x: 425, y: 1380, name: "業火の突撃兵・イグニス", hp: 250, maxHp: 250, atk: 38, exp: 170, gold: 180, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
-    { x: 520, y: 1350, name: "業火の突撃兵・ヘルフレア", hp: 280, maxHp: 280, atk: 42, exp: 200, gold: 210, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
+        // 🔥 業火の魔城
+        { x: 425, y: 1240, name: "【業火帝】ブレイズ", hp: 750, maxHp: 750, atk: 58, exp: 700, gold: 700, type: "cadre_fire", size: 38, isCadre: "fire" },
+        { x: 330, y: 1350, name: "業火の突撃兵・プロメノ", hp: 250, maxHp: 250, atk: 38, exp: 170, gold: 180, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
+        { x: 425, y: 1380, name: "業火の突撃兵・イグニス", hp: 250, maxHp: 250, atk: 38, exp: 170, gold: 180, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
+        { x: 520, y: 1350, name: "業火の突撃兵・ヘルフレア", hp: 280, maxHp: 280, atk: 42, exp: 200, gold: 210, type: "sub_fire", size: 24, isSubCadre: true, parentCadre: "fire" },
 
-    // ⚡ 雷鳴の魔城 (南東)
-    { x: 3125, y: 1240, name: "【雷鳴王】ボルト", hp: 1000, maxHp: 1000, atk: 72, exp: 1000, gold: 1000, type: "cadre_thunder", size: 40, isCadre: "thunder" },
-    { x: 3030, y: 1350, name: "雷鳴の執行官・ライガ", hp: 340, maxHp: 340, atk: 48, exp: 250, gold: 260, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
-    { x: 3125, y: 1380, name: "雷鳴の執行官・ヴォルト", hp: 340, maxHp: 340, atk: 48, exp: 250, gold: 260, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
-    { x: 3220, y: 1350, name: "雷鳴の執行官・サンダー", hp: 380, maxHp: 380, atk: 52, exp: 290, gold: 300, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
+        // ⚡ 雷鳴の魔城
+        { x: 3125, y: 1240, name: "【雷鳴王】ボルト", hp: 1000, maxHp: 1000, atk: 72, exp: 1000, gold: 1000, type: "cadre_thunder", size: 40, isCadre: "thunder" },
+        { x: 3030, y: 1350, name: "雷鳴の執行官・ライガ", hp: 340, maxHp: 340, atk: 48, exp: 250, gold: 260, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
+        { x: 3125, y: 1380, name: "雷鳴の執行官・ヴォルト", hp: 340, maxHp: 340, atk: 48, exp: 250, gold: 260, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
+        { x: 3220, y: 1350, name: "雷鳴の執行官・サンダー", hp: 380, maxHp: 380, atk: 52, exp: 290, gold: 300, type: "sub_thunder", size: 24, isSubCadre: true, parentCadre: "thunder" },
 
-    // 👑 終焉の魔王城 (中央北)
-    { x: 1800, y: 320, name: "【終焉の魔王】ルシフェル", hp: 1600, maxHp: 1600, atk: 90, exp: 0, gold: 0, type: "lucifel", size: 50, isBoss: true }
-];
+        // 👑 終焉の魔王城
+        { x: 1800, y: 320, name: "【終焉の魔王】ルシフェル", hp: 1600, maxHp: 1600, atk: 90, exp: 0, gold: 0, type: "lucifel", size: 50, isBoss: true }
+    ];
+
+    spawnWildMonsters();
+}
 
 function spawnWildMonsters() {
     const mobTypes = [
@@ -277,13 +281,21 @@ function spawnWildMonsters() {
         }
     });
 }
-spawnWildMonsters();
+
+initPlayer();
+initEnemies();
 
 const keys = {};
 
 window.addEventListener('keydown', e => {
     keys[e.code] = true;
-    if (gameState === "FIELD" && e.code === 'Space') {
+    if (gameState === "TITLE" && (e.code === 'Space' || e.code === 'Enter')) {
+        initPlayer();
+        initEnemies();
+        gameState = "FIELD";
+    } else if (gameState === "ENDING" && (e.code === 'Space' || e.code === 'Enter')) {
+        gameState = "TITLE";
+    } else if (gameState === "FIELD" && e.code === 'Space') {
         checkFieldInteraction();
     } else if (gameState === "DIALOGUE" && e.code === 'Space') {
         gameState = "FIELD";
@@ -294,6 +306,7 @@ window.addEventListener('keydown', e => {
     } else if (gameState === "BATTLE") {
         handleBattleInput(e.code);
     }
+    updateUI();
 });
 
 window.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -312,10 +325,12 @@ function updateUI() {
     document.getElementById('ui-weapon').innerText = WEAPONS[p.equippedWeapon].name;
 
     const stateEl = document.getElementById('ui-state');
-    if (gameState === "FIELD") { stateEl.innerText = "フィールド探索"; stateEl.style.color = "#4ade80"; }
+    if (gameState === "TITLE") { stateEl.innerText = "タイトル画面"; stateEl.style.color = "#fbbf24"; }
+    else if (gameState === "FIELD") { stateEl.innerText = "フィールド探索"; stateEl.style.color = "#4ade80"; }
     else if (gameState === "DIALOGUE") { stateEl.innerText = "会話中"; stateEl.style.color = "#fbbf24"; }
     else if (gameState === "SHOP") { stateEl.innerText = "ショップ利用中"; stateEl.style.color = "#38bdf8"; }
     else if (gameState === "BATTLE") { stateEl.innerText = "ターン制バトル"; stateEl.style.color = "#f87171"; }
+    else if (gameState === "ENDING") { stateEl.innerText = "エンディング"; stateEl.style.color = "#a855f7"; }
 }
 
 function checkCollisionWithWalls(nextX, nextY) {
@@ -574,12 +589,17 @@ function checkBattleEnd() {
             alert(`🌟 LEVEL UP! LV ${p.lv} に上がった！ (最大HP/MP・攻撃力が上昇)`);
         }
 
+        const isBossDefeated = currentTarget.isBoss;
         enemies = enemies.filter(e => e !== currentTarget);
+
         setTimeout(() => {
-            if (currentTarget.isBoss) {
-                alert("🎊 CONGRATULATIONS!\n終焉の魔王ルシフェルを倒し、世界に平和が戻った！");
+            if (isBossDefeated) {
+                alert("🎊 終焉の魔王ルシフェルを打ち倒し、世界に平和を取り戻した！");
+                endingScrollY = 0;
+                gameState = "ENDING";
+            } else {
+                gameState = "FIELD";
             }
-            gameState = "FIELD";
             updateUI();
         }, 1200);
         return true;
@@ -673,6 +693,92 @@ function update() {
 // ==========================================
 // 🎨 描画処理（グラフィック＆顔の精細化）
 // ==========================================
+
+function drawTitleView() {
+    ctx.fillStyle = "#020617"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    ctx.save();
+    ctx.textAlign = "center";
+
+    // 豪華な背景グラデーション効果
+    const grad = ctx.createRadialGradient(400, 240, 50, 400, 240, 400);
+    grad.addColorStop(0, "rgba(30, 58, 138, 0.5)");
+    grad.addColorStop(1, "rgba(2, 6, 23, 1)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // タイトルロゴ
+    ctx.fillStyle = "#fbbf24";
+    ctx.font = "bold 44px sans-serif";
+    ctx.shadowColor = "#f59e0b";
+    ctx.shadowBlur = 18;
+    ctx.fillText("ソラゴンクエスト", canvas.width / 2, 170);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = "#38bdf8";
+    ctx.font = "bold 18px sans-serif";
+    ctx.fillText("〜 結界に守られし村々と四天王の影 〜", canvas.width / 2, 220);
+
+    // 点滅するスタートボタンメッセージ
+    if (Math.floor(Date.now() / 500) % 2 === 0) {
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 20px sans-serif";
+        ctx.fillText("PRESS SPACE TO START", canvas.width / 2, 330);
+    }
+
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "13px sans-serif";
+    ctx.fillText("【操作】 移動: WASD / 矢印  |  調べる・決定: SPACE  |  戦闘コマンド: 1, 2, 3, 4", canvas.width / 2, 420);
+
+    ctx.restore();
+}
+
+function drawEndingView() {
+    ctx.fillStyle = "#000000"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    endingScrollY -= 0.8;
+
+    ctx.save();
+    ctx.textAlign = "center";
+
+    const credits = [
+        { text: "〜 FIN 〜", font: "bold 28px sans-serif", color: "#fbbf24", margin: 100 },
+        { text: "ソラゴンクエスト", font: "bold 38px sans-serif", color: "#38bdf8", margin: 70 },
+        { text: "四天王と魔王の脅威から世界は救われた", font: "16px sans-serif", color: "#e2e8f0", margin: 120 },
+
+        { text: "= STAFF CREDITS =", font: "bold 22px sans-serif", color: "#fbbf24", margin: 60 },
+        { text: "【 ディレクター & ゲームデザイン 】", font: "bold 14px sans-serif", color: "#94a3b8", margin: 25 },
+        { text: "サマースカイ", font: "bold 26px sans-serif", color: "#ffffff", margin: 80 },
+
+        { text: "【 AI 開発パートナー 】", font: "bold 14px sans-serif", color: "#94a3b8", margin: 25 },
+        { text: "Gemini", font: "bold 26px sans-serif", color: "#38bdf8", margin: 100 },
+
+        { text: "【 Special Thanks 】", font: "bold 14px sans-serif", color: "#94a3b8", margin: 25 },
+        { text: "すべての冒険者たち", font: "bold 20px sans-serif", color: "#4ade80", margin: 140 },
+
+        { text: "THANK YOU FOR PLAYING!", font: "bold 28px sans-serif", color: "#fbbf24", margin: 0 }
+    ];
+
+    let currentY = canvas.height + endingScrollY;
+
+    credits.forEach(item => {
+        if (currentY > -40 && currentY < canvas.height + 40) {
+            ctx.font = item.font;
+            ctx.fillStyle = item.color;
+            ctx.fillText(item.text, canvas.width / 2, currentY);
+        }
+        currentY += item.margin;
+    });
+
+    ctx.restore();
+
+    if (currentY < canvas.height / 2) {
+        if (Math.floor(Date.now() / 500) % 2 === 0) {
+            ctx.fillStyle = "#ffffff"; ctx.font = "bold 16px sans-serif"; ctx.textAlign = "center";
+            ctx.fillText("PRESS SPACE TO RETURN TO TITLE", canvas.width / 2, 440);
+        }
+    }
+}
 
 function drawDetailedPlayer(ctx, scale = 1) {
     ctx.save();
@@ -788,13 +894,11 @@ function drawNPC(ctx, type) {
     ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(-3, -2, 2.5, 0, Math.PI*2); ctx.arc(3, -2, 2.5, 0, Math.PI*2); ctx.fill();
 }
 
-// ✨ 全敵キャラクターの顔・外見の精密描画
 function drawCadre(ctx, type, scale = 1) {
     ctx.save();
     ctx.scale(scale, scale);
 
     if (type === "slime") {
-        // 💧 スライム：光沢と可愛らしい目・口
         ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
         ctx.beginPath(); ctx.ellipse(0, 12, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
 
@@ -806,37 +910,29 @@ function drawCadre(ctx, type, scale = 1) {
         ctx.bezierCurveTo(-20, 12, -16, -16, 0, -16);
         ctx.fill();
 
-        // ぷにぷにハイライト
         ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
         ctx.beginPath(); ctx.arc(-6, -6, 4, 0, Math.PI * 2); ctx.fill();
 
-        // つぶらな瞳
         ctx.fillStyle = "#0f172a";
         ctx.beginPath(); ctx.arc(-5, 2, 2.5, 0, Math.PI * 2); ctx.arc(5, 2, 2.5, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = "#fff";
         ctx.beginPath(); ctx.arc(-6, 1, 1, 0, Math.PI * 2); ctx.arc(4, 1, 1, 0, Math.PI * 2); ctx.fill();
 
-        // にっこり口
         ctx.strokeStyle = "#0891b2"; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.arc(0, 4, 3, 0.1, Math.PI - 0.1); ctx.stroke();
 
     } else if (type === "goblin") {
-        // 👺 野良ゴブリン：尖った耳、ギラついた目、鋭い牙
         ctx.fillStyle = "#15803d";
-        // 三角耳
         ctx.beginPath(); ctx.moveTo(-8, -4); ctx.lineTo(-20, -8); ctx.lineTo(-10, 4); ctx.fill();
         ctx.beginPath(); ctx.moveTo(8, -4); ctx.lineTo(20, -8); ctx.lineTo(10, 4); ctx.fill();
 
-        // 顔のベース
         ctx.beginPath(); ctx.arc(0, 0, 14, 0, Math.PI * 2); ctx.fill();
 
-        // ギラついた目
         ctx.fillStyle = "#ef4444";
         ctx.beginPath(); ctx.arc(-4, -2, 3, 0, Math.PI * 2); ctx.arc(4, -2, 3, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = "#fbbf24";
         ctx.beginPath(); ctx.arc(-4, -2, 1, 0, Math.PI * 2); ctx.arc(4, -2, 1, 0, Math.PI * 2); ctx.fill();
 
-        // ニヤリ口と牙
         ctx.strokeStyle = "#052e16"; ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(-6, 5); ctx.lineTo(6, 5); ctx.stroke();
         ctx.fillStyle = "#fff";
@@ -844,36 +940,29 @@ function drawCadre(ctx, type, scale = 1) {
         ctx.beginPath(); ctx.moveTo(2, 5); ctx.lineTo(3, 2); ctx.lineTo(4, 5); ctx.fill();
 
     } else if (type === "oak") {
-        // 🐗 荒野のオーク：強靭な顔、大きな一本角、巨大な下牙
         ctx.fillStyle = "#78350f"; ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#451a03"; ctx.fillRect(-12, -8, 24, 6); // 怒り眉
+        ctx.fillStyle = "#451a03"; ctx.fillRect(-12, -8, 24, 6);
 
-        // 赤い眼光
         ctx.fillStyle = "#f87171";
         ctx.beginPath(); ctx.arc(-6, -2, 2.5, 0, Math.PI * 2); ctx.arc(6, -2, 2.5, 0, Math.PI * 2); ctx.fill();
 
-        // 大きな突き出た下牙
         ctx.fillStyle = "#fef3c7";
         ctx.beginPath(); ctx.moveTo(-8, 8); ctx.lineTo(-6, 0); ctx.lineTo(-4, 8); ctx.fill();
         ctx.beginPath(); ctx.moveTo(4, 8); ctx.lineTo(6, 0); ctx.lineTo(8, 8); ctx.fill();
 
     } else if (type === "golem") {
-        // 🗿 ゴーレム：岩石構造、胸に輝く魔力コア
         ctx.fillStyle = "#334155";
         ctx.fillRect(-16, -16, 32, 32);
         ctx.strokeStyle = "#64748b"; ctx.lineWidth = 2;
         ctx.strokeRect(-16, -16, 32, 32);
 
-        // ひび割れ模様
         ctx.beginPath(); ctx.moveTo(-10, -10); ctx.lineTo(-2, -4); ctx.lineTo(-6, 6); ctx.stroke();
 
-        // 発光するコア目
         ctx.fillStyle = "#38bdf8"; ctx.shadowColor = "#38bdf8"; ctx.shadowBlur = 8;
         ctx.fillRect(-8, -6, 16, 4);
         ctx.shadowBlur = 0;
 
     } else if (type.startsWith("sub_")) {
-        // 🛡️ 四天王配下：属性バイザーとバイザー内の眼光
         let color = "#94a3b8";
         if (type === "sub_wind") color = "#10b981";
         if (type === "sub_water") color = "#06b6d4";
@@ -881,94 +970,78 @@ function drawCadre(ctx, type, scale = 1) {
         if (type === "sub_thunder") color = "#eab308";
 
         ctx.fillStyle = "#1e293b"; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = color; ctx.fillRect(-12, -4, 24, 6); // 属性スリット
-        ctx.fillStyle = "#fff"; ctx.fillRect(-3, -2, 6, 2); // 鋭い眼光
+        ctx.fillStyle = color; ctx.fillRect(-12, -4, 24, 6);
+        ctx.fillStyle = "#fff"; ctx.fillRect(-3, -2, 6, 2);
 
     } else if (type === "cadre_wind") {
-        // 🌪️ 【疾風将】ゼファー：緑の流髪、翼の面具、仮面
         ctx.fillStyle = "#059669";
         ctx.beginPath(); ctx.moveTo(0, -32); ctx.lineTo(-18, -10); ctx.lineTo(18, -10); ctx.closePath(); ctx.fill();
 
         ctx.fillStyle = "#10b981"; ctx.beginPath(); ctx.ellipse(0, 0, 18, 22, 0, 0, Math.PI * 2); ctx.fill();
 
-        // 翼のヘッドギア
         ctx.fillStyle = "#a7f3d0";
         ctx.beginPath(); ctx.moveTo(-16, -8); ctx.lineTo(-28, -20); ctx.lineTo(-14, -2); ctx.fill();
         ctx.beginPath(); ctx.moveTo(16, -8); ctx.lineTo(28, -20); ctx.lineTo(14, -2); ctx.fill();
 
-        // 仮面の鋭い目
         ctx.fillStyle = "#064e3b"; ctx.fillRect(-10, -4, 20, 6);
         ctx.fillStyle = "#34d399"; ctx.beginPath(); ctx.arc(-5, -1, 2, 0, Math.PI * 2); ctx.arc(5, -1, 2, 0, Math.PI * 2); ctx.fill();
 
     } else if (type === "cadre_water") {
-        // ❄️ 【氷華后】アクアリア：氷冠、青い美しい髪、冷酷な瞳
         ctx.fillStyle = "#38bdf8";
         ctx.beginPath(); ctx.moveTo(-20, 10); ctx.lineTo(-22, -22); ctx.lineTo(0, -12); ctx.lineTo(22, -22); ctx.lineTo(20, 10); ctx.fill();
 
         ctx.fillStyle = "#bae6fd"; ctx.beginPath(); ctx.arc(0, -2, 15, 0, Math.PI * 2); ctx.fill();
 
-        // 氷結晶ティアラ
         ctx.fillStyle = "#0284c7";
         ctx.beginPath(); ctx.moveTo(-10, -14); ctx.lineTo(0, -26); ctx.lineTo(10, -14); ctx.fill();
 
-        // 瞳
         ctx.fillStyle = "#0369a1"; ctx.beginPath(); ctx.arc(-5, -2, 2.5, 0, Math.PI * 2); ctx.arc(5, -2, 2.5, 0, Math.PI * 2); ctx.fill();
 
     } else if (type === "cadre_fire") {
-        // 🔥 【業火帝】ブレイズ：巨角、燃え上がる炎の髪、威圧的な赤眼
-        ctx.fillStyle = "#ef4444"; // 炎の髪
+        ctx.fillStyle = "#ef4444";
         ctx.beginPath();
         ctx.moveTo(0, -36); ctx.lineTo(12, -18); ctx.lineTo(22, -30); ctx.lineTo(16, 0);
         ctx.lineTo(-16, 0); ctx.lineTo(-22, -30); ctx.lineTo(-12, -18); ctx.closePath(); ctx.fill();
 
         ctx.fillStyle = "#7f1d1d"; ctx.beginPath(); ctx.arc(0, 0, 18, 0, Math.PI * 2); ctx.fill();
 
-        // 漆黒の二本角
         ctx.fillStyle = "#18181b";
         ctx.beginPath(); ctx.moveTo(-12, -10); ctx.lineTo(-26, -26); ctx.lineTo(-8, -16); ctx.fill();
         ctx.beginPath(); ctx.moveTo(12, -10); ctx.lineTo(26, -26); ctx.lineTo(8, -16); ctx.fill();
 
-        // 灼熱の瞳
         ctx.fillStyle = "#fbbf24"; ctx.beginPath(); ctx.arc(-6, -2, 3, 0, Math.PI * 2); ctx.arc(6, -2, 3, 0, Math.PI * 2); ctx.fill();
 
     } else if (type === "cadre_thunder") {
-        // ⚡ 【雷鳴王】ボルト：雷神の冠、白髭、雷光の眼光
         ctx.fillStyle = "#eab308";
         ctx.beginPath(); ctx.moveTo(-16, -14); ctx.lineTo(-8, -32); ctx.lineTo(0, -18); ctx.lineTo(8, -32); ctx.lineTo(16, -14); ctx.fill();
 
         ctx.fillStyle = "#713f12"; ctx.beginPath(); ctx.arc(0, -2, 17, 0, Math.PI * 2); ctx.fill();
 
-        // 威厳ある白髭
         ctx.fillStyle = "#f8fafc";
         ctx.beginPath(); ctx.moveTo(-14, 2); ctx.lineTo(0, 22); ctx.lineTo(14, 2); ctx.fill();
 
-        // 光る雷眼
         ctx.fillStyle = "#fef08a"; ctx.shadowColor = "#fef08a"; ctx.shadowBlur = 6;
         ctx.beginPath(); ctx.arc(-5, -4, 3, 0, Math.PI * 2); ctx.arc(5, -4, 3, 0, Math.PI * 2); ctx.fill();
         ctx.shadowBlur = 0;
 
     } else if (type === "lucifel") {
-        // 👑 【終焉の魔王】ルシフェル：黒きオーラ、多重の角、6つの光る紅眼、額の邪眼
         ctx.fillStyle = "rgba(88, 28, 135, 0.4)"; ctx.shadowColor = "#a855f7"; ctx.shadowBlur = 20;
         ctx.beginPath(); ctx.arc(0, 0, 36, 0, Math.PI * 2); ctx.fill();
         ctx.shadowBlur = 0;
 
         ctx.fillStyle = "#2e1065"; ctx.beginPath(); ctx.arc(0, 0, 28, 0, Math.PI * 2); ctx.fill();
 
-        // 凶悪な4本角
         ctx.fillStyle = "#0f172a";
         ctx.beginPath(); ctx.moveTo(-15, -15); ctx.lineTo(-38, -38); ctx.lineTo(-8, -24); ctx.fill();
         ctx.beginPath(); ctx.moveTo(15, -15); ctx.lineTo(38, -38); ctx.lineTo(8, -24); ctx.fill();
         ctx.beginPath(); ctx.moveTo(-20, -5); ctx.lineTo(-44, -18); ctx.lineTo(-16, -12); ctx.fill();
         ctx.beginPath(); ctx.moveTo(20, -5); ctx.lineTo(44, -18); ctx.lineTo(16, -12); ctx.fill();
 
-        // 6つの邪悪な赤眼
         ctx.fillStyle = "#dc2626"; ctx.shadowColor = "#ef4444"; ctx.shadowBlur = 8;
         ctx.beginPath(); ctx.arc(-10, -8, 3, 0, Math.PI * 2); ctx.arc(10, -8, 3, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(-14, 2, 2.5, 0, Math.PI * 2); ctx.arc(14, 2, 2.5, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(-6, 4, 2.5, 0, Math.PI * 2); ctx.arc(6, 4, 2.5, 0, Math.PI * 2); ctx.fill();
 
-        // 額の第3の邪眼
         ctx.fillStyle = "#fbbf24";
         ctx.beginPath(); ctx.arc(0, -14, 4, 0, Math.PI * 2); ctx.fill();
         ctx.fillStyle = "#000";
@@ -1102,10 +1175,12 @@ function drawMenuButton(text, x, y, w, h, color) {
 
 function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (gameState === "FIELD") drawField();
+    if (gameState === "TITLE") drawTitleView();
+    else if (gameState === "FIELD") drawField();
     else if (gameState === "DIALOGUE" || gameState === "INN") drawDialogueView();
     else if (gameState === "SHOP") drawShopView();
     else if (gameState === "BATTLE") drawBattleView();
+    else if (gameState === "ENDING") drawEndingView();
 }
 
 function gameLoop() {
